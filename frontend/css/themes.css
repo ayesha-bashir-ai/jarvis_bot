@@ -1,0 +1,232 @@
+/* ============================================
+   JARVIS AI ASSISTANT - THEMES
+   ============================================ */
+
+/* Light Theme */
+body.light-theme {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+body.light-theme .sidebar {
+    background: rgba(255, 255, 255, 0.95);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme .sidebar,
+body.light-theme .status-card,
+body.light-theme .stats-card,
+body.light-theme .features-section {
+    background: white;
+    border-color: #e0e0e0;
+    color: #333;
+}
+
+body.light-theme .status-item,
+body.light-theme .features-list li {
+    color: #666;
+}
+
+body.light-theme .status-item strong,
+body.light-theme .stat-value {
+    color: #333;
+}
+
+body.light-theme .message.assistant .message-content {
+    background: white;
+    color: #333;
+    border: 1px solid #e0e0e0;
+}
+
+body.light-theme .message-input,
+body.light-theme .settings-input,
+body.light-theme .settings-select {
+    background: #f5f5f5;
+    border-color: #e0e0e0;
+    color: #333;
+}
+
+body.light-theme .message-input::placeholder {
+    color: #999;
+}
+
+body.light-theme .welcome-screen h2 {
+    color: #333;
+}
+
+body.light-theme .welcome-text {
+    color: #666;
+}
+
+body.light-theme .suggestion-card {
+    background: white;
+    border-color: #e0e0e0;
+    color: #333;
+}
+
+body.light-theme .modal-container {
+    background: white;
+}
+
+body.light-theme .modal-header,
+body.light-theme .modal-footer {
+    border-color: #e0e0e0;
+}
+
+body.light-theme .settings-label {
+    color: #666;
+}
+
+body.light-theme .modal-close:hover {
+    background: #f5f5f5;
+}
+
+/* Cyberpunk Theme */
+body.cyber-theme {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a0033 100%);
+}
+
+body.cyber-theme .sidebar {
+    background: rgba(0, 255, 255, 0.05);
+    border-right: 2px solid #00ffff;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+body.cyber-theme .status-card,
+body.cyber-theme .stats-card,
+body.cyber-theme .features-section {
+    border: 1px solid #00ffff;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.8);
+}
+
+body.cyber-theme .logo-icon {
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    animation: cyberPulse 2s infinite;
+}
+
+@keyframes cyberPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px #00ffff;
+    }
+    50% {
+        box-shadow: 0 0 40px #ff00ff;
+    }
+}
+
+body.cyber-theme .send-btn,
+body.cyber-theme .header-btn.active,
+body.cyber-theme .settings-btn-small,
+body.cyber-theme .modal-btn-primary {
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+body.cyber-theme .message.user .message-content {
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    border: none;
+}
+
+body.cyber-theme .message.assistant .message-content {
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid #00ffff;
+    color: #00ffff;
+    text-shadow: 0 0 5px #00ffff;
+}
+
+body.cyber-theme .message-input:focus {
+    border-color: #00ffff;
+    box-shadow: 0 0 15px #00ffff;
+}
+
+body.cyber-theme .status-badge {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: #00ffff;
+    color: #00ffff;
+}
+
+body.cyber-theme .pulse {
+    background: #00ffff;
+    box-shadow: 0 0 10px #00ffff;
+}
+
+body.cyber-theme .typing-indicator span {
+    background: #00ffff;
+    box-shadow: 0 0 5px #00ffff;
+}
+
+body.cyber-theme .wave-bar {
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+}
+
+body.cyber-theme .suggestion-card:hover {
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+}
+
+body.cyber-theme .settings-btn,
+body.cyber-theme .action-btn {
+    border-color: #00ffff;
+    color: #00ffff;
+}
+
+body.cyber-theme .settings-btn:hover,
+body.cyber-theme .action-btn:hover {
+    background: rgba(0, 255, 255, 0.2);
+    box-shadow: 0 0 15px #00ffff;
+}
+
+body.cyber-theme .modal-container {
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #00ffff;
+}
+
+body.cyber-theme .theme-option.active {
+    border-color: #00ffff;
+    background: rgba(0, 255, 255, 0.2);
+}
+
+body.cyber-theme .theme-option i {
+    color: #00ffff;
+}
+
+body.cyber-theme .theme-option i:nth-child(2) {
+    color: #ff00ff;
+}
+
+/* Dark Theme (Default) Enhancements */
+body.dark-theme .sidebar {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .status-card,
+body.dark-theme .stats-card,
+body.dark-theme .features-section {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme .message-input {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme .suggestion-card {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme .modal-container {
+    background: #1a1a2e;
+}
+
+/* Theme Transition */
+body {
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.sidebar,
+.status-card,
+.stats-card,
+.features-section,
+.message-content,
+.message-input,
+.modal-container,
+.suggestion-card {
+    transition: all 0.3s ease;
+}

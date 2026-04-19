@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: jarvis-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - NEWS_API_KEY=${NEWS_API_KEY}
+      - DATABASE_URL=sqlite:///data/jarvis.db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - jarvis-network
+
+  frontend:
+    image: nginx:alpine
+    container_name: jarvis-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - jarvis-network
+
+networks:
+  jarvis-network:
+    driver: bridge
