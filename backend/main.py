@@ -8,6 +8,8 @@ import os
 from openai import OpenAI
 from datetime import datetime
 import re
+import time
+import random
 
 app = FastAPI(title="JARVIS AI Assistant")
 
@@ -34,7 +36,7 @@ client = OpenAI(
 
 def handle_browser_command(message: str) -> str:
     msg = message.lower()
-    
+
     websites = {
         "youtube": "https://youtube.com",
         "google": "https://google.com",
@@ -48,27 +50,27 @@ def handle_browser_command(message: str) -> str:
         "netflix": "https://netflix.com",
         "spotify": "https://spotify.com",
     }
-    
+
     for site, url in websites.items():
         if f"open {site}" in msg:
             webbrowser.open(url)
             return f"Opening {site.title()} for you! 🚀"
-    
+
     if "search" in msg:
         query = msg.replace("search", "").replace("for", "").strip()
         if query:
             search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
             webbrowser.open(search_url)
             return f"Searching for '{query}'... 🔍"
-    
+
     return None
+
 
 @app.post("/api/v1/chat")
 async def chat(request: ChatRequest):
-    import time
     start = time.time()
-    
-    # Check for browser commands
+
+    # Browser commands
     browser_response = handle_browser_command(request.message)
     if browser_response:
         return {
@@ -79,10 +81,10 @@ async def chat(request: ChatRequest):
             "tools_used": ["browser"],
             "execution_time": time.time() - start
         }
-    
-    # Special cases for common questions (fallback)
+
     msg_lower = request.message.lower()
-    
+
+    # Simple responses
     if "capital of pakistan" in msg_lower:
         return {
             "message": "The capital of Pakistan is Islamabad.",
@@ -92,7 +94,7 @@ async def chat(request: ChatRequest):
             "tools_used": [],
             "execution_time": time.time() - start
         }
-    
+
     if "time" in msg_lower:
         return {
             "message": f"The current time is {datetime.now().strftime('%I:%M %p')}",
@@ -102,14 +104,13 @@ async def chat(request: ChatRequest):
             "tools_used": [],
             "execution_time": time.time() - start
         }
-    
+
     if "joke" in msg_lower:
         jokes = [
             "Why don't scientists trust atoms? Because they make up everything!",
             "What do you call a fake noodle? An impasta!",
             "Why did the scarecrow win an award? He was outstanding in his field!"
         ]
-        import random
         return {
             "message": random.choice(jokes),
             "session_id": request.session_id,
@@ -118,22 +119,22 @@ async def chat(request: ChatRequest):
             "tools_used": [],
             "execution_time": time.time() - start
         }
-    
-    # Use OpenRouter AI for everything else
+
+    # AI response (OpenRouter)
     try:
         response = client.chat.completions.create(
             model="openai/gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are JARVIS, a helpful AI assistant. Answer questions concisely and accurately."},
+                {"role": "system", "content": "You are JARVIS, a helpful AI assistant. Answer clearly and concisely."},
                 {"role": "user", "content": request.message}
             ],
             temperature=0.7,
             max_tokens=500
         )
-        
+
         ai_message = response.choices[0].message.content
-        tokens = response.usage.total_tokens if hasattr(response.usage, 'total_tokens') else 100
-        
+        tokens = getattr(response.usage, "total_tokens", 100)
+
         return {
             "message": ai_message,
             "session_id": request.session_id,
@@ -142,7 +143,7 @@ async def chat(request: ChatRequest):
             "tools_used": ["ai"],
             "execution_time": time.time() - start
         }
-        
+
     except Exception as e:
         return {
             "message": f"Error: {str(e)}",
@@ -153,24 +154,26 @@ async def chat(request: ChatRequest):
             "execution_time": time.time() - start
         }
 
+
 @app.get("/")
 async def root():
     return {"name": "JARVIS AI Assistant", "status": "online"}
+
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
+
+# ✅ FIXED ENTRY POINT (IMPORTANT)
 if __name__ == "__main__":
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("🤖 JARVIS AI Assistant Starting...")
-    print("="*50)
+    print("=" * 50)
     print("📍 Server: http://127.0.0.1:8000")
     print("📚 API Docs: http://127.0.0.1:8000/docs")
     print("🌐 Try: 'open YouTube', 'what is the capital of Pakistan'")
-    print("="*50 + "\n")
-    
-    if __name__ == "__main__":
-    import os
+    print("=" * 50 + "\n")
+
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
