@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
     user_id: Optional[str] = "user1"
 
 # Initialize OpenRouter client
-api_key = "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"
+api_key = os.getenv("OPENROUTER_API_KEY")
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
@@ -170,4 +170,6 @@ if __name__ == "__main__":
     print("🌐 Try: 'open YouTube', 'what is the capital of Pakistan'")
     print("="*50 + "\n")
     
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+  if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
