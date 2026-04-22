@@ -3,15 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
-import webbrowser
 import os
 import time
 import random
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
+import webbrowser
 
-# Load env
+# Load environment
 load_dotenv()
 
 api_key = os.getenv("OPENROUTER_API_KEY")
@@ -38,13 +38,13 @@ class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = "default"
 
-def handle_browser_command(message: str):
+def handle_browser(message: str):
     msg = message.lower()
 
     sites = {
         "youtube": "https://youtube.com",
         "google": "https://google.com",
-        "github": "https://github.com",
+        "github": "https://github.com"
     }
 
     for site, url in sites.items():
@@ -53,28 +53,30 @@ def handle_browser_command(message: str):
             return f"Opening {site}"
 
     if "search" in msg:
-        query = msg.replace("search", "")
-        url = f"https://google.com/search?q={query}"
+        q = msg.replace("search", "")
+        url = f"https://google.com/search?q={q}"
         webbrowser.open(url)
-        return f"Searching {query}"
+        return f"Searching {q}"
 
     return None
 
 @app.post("/api/v1/chat")
-async def chat(request: ChatRequest):
+async def chat(req: ChatRequest):
     start = time.time()
 
-    browser = handle_browser_command(request.message)
+    browser = handle_browser(req.message)
     if browser:
         return {"message": browser, "tools_used": ["browser"]}
 
-    if "time" in request.message.lower():
+    msg = req.message.lower()
+
+    if "time" in msg:
         return {"message": datetime.now().strftime("%I:%M %p")}
 
-    if "joke" in request.message.lower():
+    if "joke" in msg:
         return {"message": random.choice([
             "Why do programmers prefer dark mode? Because light attracts bugs!",
-            "I told my computer I needed a break, now it won’t stop sending me KitKats!"
+            "I told my PC I need a break — now it won’t stop sending me memes!"
         ])}
 
     try:
@@ -82,7 +84,7 @@ async def chat(request: ChatRequest):
             model="openai/gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are JARVIS AI assistant."},
-                {"role": "user", "content": request.message}
+                {"role": "user", "content": req.message}
             ]
         )
 
@@ -103,4 +105,8 @@ def health():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "backend.main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000))
+    )
