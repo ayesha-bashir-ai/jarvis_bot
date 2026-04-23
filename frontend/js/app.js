@@ -1,11 +1,11 @@
 ﻿// JARVIS Main Application
 class JARVISApp {
     constructor() {
-        this.apiEndpoint = localStorage.getItem('apiEndpoint') ||
-            "https://jarvisbot-production-5eb2.up.railway.app";
+        this.apiEndpoint = localStorage.getItem('apiEndpoint') || 
+        "https://jarvisbot-production-5eb2.up.railway.app";
 
-        this.sessionId = localStorage.getItem('sessionId') ||
-            'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        this.sessionId = localStorage.getItem('sessionId') || 
+        'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
         this.messageCount = parseInt(localStorage.getItem('messageCount') || '0');
         this.voiceEnabled = localStorage.getItem('voiceEnabled') === 'true';
@@ -27,9 +27,7 @@ class JARVISApp {
         const sendBtn = document.getElementById('sendBtn');
         const messageInput = document.getElementById('messageInput');
 
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => this.sendMessage());
-        }
+        if (sendBtn) sendBtn.addEventListener('click', () => this.sendMessage());
 
         if (messageInput) {
             messageInput.addEventListener('keypress', (e) => {
@@ -39,32 +37,13 @@ class JARVISApp {
                 }
             });
         }
-
-        const clearBtn = document.getElementById('clearChat');
-        if (clearBtn) clearBtn.addEventListener('click', () => this.clearChat());
-
-        const voiceToggle = document.getElementById('voiceToggle');
-        if (voiceToggle) voiceToggle.addEventListener('click', () => this.toggleVoice());
-
-        const micBtn = document.getElementById('micBtn');
-        if (micBtn) micBtn.addEventListener('click', () => this.startVoiceInput());
-
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) themeToggle.addEventListener('click', () => this.toggleTheme());
-
-        const settingsBtn = document.getElementById('settingsBtn');
-        if (settingsBtn) settingsBtn.addEventListener('click', () => this.openSettings());
     }
 
     updateUI() {
-        const msgCount = document.getElementById('msgCount');
-        if (msgCount) msgCount.textContent = this.messageCount;
-
-        const sessionId = document.getElementById('sessionId');
-        if (sessionId) sessionId.textContent = this.sessionId.slice(0, 8) + "...";
-
-        const voiceStatus = document.getElementById('voiceStatus');
-        if (voiceStatus) voiceStatus.textContent = this.voiceEnabled ? "Active" : "Ready";
+        document.getElementById('msgCount').textContent = this.messageCount;
+        document.getElementById('sessionId').textContent = this.sessionId.substr(0, 8) + '...';
+        document.getElementById('sessionIdInput').value = this.sessionId;
+        document.getElementById('apiEndpoint').value = this.apiEndpoint;
     }
 
     async sendMessage() {
@@ -82,7 +61,8 @@ class JARVISApp {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message,
-                    session_id: this.sessionId
+                    session_id: this.sessionId,
+                    user_id: 'user1'
                 })
             });
 
@@ -91,20 +71,20 @@ class JARVISApp {
 
             this.addMessage(data.message, 'assistant');
 
-            // ✅ FIX: OPEN YOUTUBE / URL FROM BACKEND
-            if (data.action === "open_url" && data.url) {
-                window.open(data.url, "_blank");
+            // ✅ OPEN URL IN BROWSER (IMPORTANT FIX)
+            if (data.action === 'open_url' && data.url) {
+                window.open(data.url, '_blank');
             }
 
         } catch (error) {
             console.error(error);
             this.hideTyping();
-            this.addMessage("Backend error. Please check server.", "assistant");
+            this.addMessage("Backend error. Check server.", 'assistant');
         }
     }
 
     addMessage(text, sender) {
-        const chat = document.getElementById('chatMessages');
+        const chatMessages = document.getElementById('chatMessages');
 
         const div = document.createElement('div');
         div.className = `message ${sender}`;
@@ -116,21 +96,18 @@ class JARVISApp {
             <div class="message-content">${text}</div>
         `;
 
-        chat.appendChild(div);
-
-        const container = document.getElementById('chatContainer');
-        if (container) container.scrollTop = container.scrollHeight;
+        chatMessages.appendChild(div);
     }
 
     showTyping() {
-        const chat = document.getElementById('chatMessages');
+        const chatMessages = document.getElementById('chatMessages');
 
         const div = document.createElement('div');
         div.id = "typing";
         div.className = "message assistant";
         div.innerHTML = "🤖 typing...";
 
-        chat.appendChild(div);
+        chatMessages.appendChild(div);
     }
 
     hideTyping() {
@@ -141,49 +118,13 @@ class JARVISApp {
     async checkConnection() {
         try {
             const res = await fetch(`${this.apiEndpoint}/health`);
-            console.log("Backend connected:", await res.json());
+            console.log("Backend OK");
         } catch {
             console.log("Backend offline");
         }
     }
 
-    toggleVoice() {
-        this.voiceEnabled = !this.voiceEnabled;
-        localStorage.setItem('voiceEnabled', this.voiceEnabled);
-    }
-
-    initVoice() {
-        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) return;
-
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        this.recognition = new SR();
-
-        this.recognition.onresult = (e) => {
-            const text = e.results[0][0].transcript;
-            document.getElementById('messageInput').value = text;
-            this.sendMessage();
-        };
-    }
-
-    startVoiceInput() {
-        if (this.recognition) this.recognition.start();
-    }
-
-    toggleTheme() {
-        document.body.classList.toggle("light-theme");
-    }
-
-    openSettings() {
-        alert("Settings opened");
-    }
-
-    startUptimeTimer() {
-        setInterval(() => {
-            const uptime = Math.floor((Date.now() - this.startTime) / 1000);
-            const el = document.getElementById('uptime');
-            if (el) el.textContent = uptime + "s";
-        }, 1000);
-    }
+    startUptimeTimer() {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
