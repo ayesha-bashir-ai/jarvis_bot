@@ -9,7 +9,6 @@ import random
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
-import webbrowser
 
 # -------------------
 # LOAD ENV
@@ -67,10 +66,10 @@ def handle_browser(message: str):
             }
 
     if "search" in msg:
-        q = msg.replace("search", "").strip()
-        url = f"https://google.com/search?q={q}"
+        query = msg.replace("search", "").strip()
+        url = f"https://google.com/search?q={query}"
         return {
-            "message": f"Searching {q}",
+            "message": f"Searching {query}",
             "action": "open_url",
             "url": url
         }
@@ -84,40 +83,53 @@ def handle_browser(message: str):
 async def chat(req: ChatRequest):
     start = time.time()
 
+    # 1. Browser tool first
     browser = handle_browser(req.message)
     if browser:
-    return browser
+        return browser
 
     msg = req.message.lower()
 
+    # 2. Simple commands
     if "time" in msg:
-        return {"message": datetime.now().strftime("%I:%M %p")}
+        return {
+            "message": datetime.now().strftime("%I:%M %p")
+        }
+
+    if "date" in msg:
+        return {
+            "message": datetime.now().strftime("%Y-%m-%d")
+        }
 
     if "joke" in msg:
-        return {"message": random.choice([
-            "Why do programmers prefer dark mode? Because light attracts bugs!",
-            "I told my PC I need a break — now it won’t stop sending memes!"
-        ])}
+        return {
+            "message": random.choice([
+                "Why do programmers prefer dark mode? Because light attracts bugs!",
+                "I told my PC I need a break — now it won’t stop sending memes!",
+                "Debugging: Being the detective in a crime movie where you are also the murderer."
+            ])
+        }
 
-    # -------------------
-    # AI RESPONSE
-    # -------------------
+    # 3. AI RESPONSE
     try:
         response = client.chat.completions.create(
             model="openai/gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are JARVIS AI assistant."},
+                {"role": "system", "content": "You are JARVIS, a helpful AI assistant."},
                 {"role": "user", "content": req.message}
             ]
         )
 
         return {
             "message": response.choices[0].message.content,
-            "execution_time": time.time() - start
+            "execution_time": round(time.time() - start, 2)
         }
 
     except Exception as e:
-        return {"message": str(e)}
+        return {
+            "message": "AI error occurred",
+            "error": str(e)
+        }
 
 # -------------------
 # ROUTES
@@ -128,7 +140,10 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "time": datetime.now().isoformat()
+    }
 
 # -------------------
 # RUN SERVER (LOCAL ONLY)
