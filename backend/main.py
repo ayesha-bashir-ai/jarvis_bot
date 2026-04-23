@@ -102,7 +102,7 @@ async def chat(req: ChatRequest):
     # -------------------
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-3.5-turbo",
+            model="openai/gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are JARVIS AI assistant."},
                 {"role": "user", "content": req.message}
