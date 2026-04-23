@@ -1,4 +1,4 @@
-﻿// JARVIS Main Application (FIXED + CLEAN VERSION)
+﻿// JARVIS Main Application (PRODUCTION FIXED VERSION)
 class JARVISApp {
     constructor() {
         this.apiEndpoint = localStorage.getItem('apiEndpoint') ||
@@ -10,8 +10,6 @@ class JARVISApp {
         this.messageCount = parseInt(localStorage.getItem('messageCount') || '0');
         this.voiceEnabled = localStorage.getItem('voiceEnabled') === 'true';
         this.startTime = Date.now();
-
-        this.init();
     }
 
     async init() {
@@ -22,21 +20,30 @@ class JARVISApp {
         console.log("JARVIS Ready");
     }
 
-    // ---------------- EVENTS ----------------
+    // ---------------- EVENTS (FIXED SAFE BINDING) ----------------
     bindEvents() {
+        console.log("Binding events...");
+
         const sendBtn = document.getElementById('sendBtn');
         const input = document.getElementById('messageInput');
+        const clearBtn = document.getElementById('clearChat');
 
-        if (sendBtn) sendBtn.addEventListener('click', () => this.sendMessage());
+        console.log("sendBtn:", sendBtn);
+        console.log("messageInput:", input);
+
+        if (sendBtn) {
+            sendBtn.onclick = () => this.sendMessage();
+        }
 
         if (input) {
-            input.addEventListener('keypress', (e) => {
+            input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') this.sendMessage();
             });
         }
 
-        const clearBtn = document.getElementById('clearChat');
-        if (clearBtn) clearBtn.addEventListener('click', () => this.clearChat());
+        if (clearBtn) {
+            clearBtn.onclick = () => this.clearChat();
+        }
     }
 
     // ---------------- UI ----------------
@@ -58,7 +65,8 @@ class JARVISApp {
     // ---------------- CHAT ----------------
     async sendMessage() {
         const input = document.getElementById('messageInput');
-        const message = input.value.trim();
+        const message = input?.value.trim();
+
         if (!message) return;
 
         this.addMessage(message, "user");
@@ -75,6 +83,8 @@ class JARVISApp {
                     user_id: "user1"
                 })
             });
+
+            if (!res.ok) throw new Error("Server error");
 
             const data = await res.json();
             this.hideTyping();
@@ -140,15 +150,17 @@ class JARVISApp {
         }
     }
 
-    // ---------------- CHAT CLEAR ----------------
+    // ---------------- CLEAR CHAT ----------------
     clearChat() {
         const chat = document.getElementById("chatMessages");
         if (chat) chat.innerHTML = "";
+
         this.messageCount = 0;
         localStorage.setItem("messageCount", "0");
         this.updateUI();
     }
 
+    // ---------------- UPTIME ----------------
     startUptimeTimer() {
         setInterval(() => {
             const uptime = Math.floor((Date.now() - this.startTime) / 1000);
@@ -158,7 +170,8 @@ class JARVISApp {
     }
 }
 
-// INIT
+// ---------------- SAFE INIT (IMPORTANT FIX) ----------------
 document.addEventListener("DOMContentLoaded", () => {
     window.jarvis = new JARVISApp();
+    window.jarvis.init();
 });
