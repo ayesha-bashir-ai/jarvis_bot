@@ -1,7 +1,8 @@
 ﻿// JARVIS Main Application
 class JARVISApp {
     constructor() {
-        this.apiEndpoint = localStorage.getItem('apiEndpoint') || 'http://localhost:8000';
+        this.apiEndpoint = localStorage.getItem('apiEndpoint') || 
+'jarvisbot-production-5eb2.up.railway.app';
         this.sessionId = localStorage.getItem('sessionId') || 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         this.messageCount = parseInt(localStorage.getItem('messageCount') || '0');
         this.voiceEnabled = localStorage.getItem('voiceEnabled') === 'true';
