@@ -60,14 +60,20 @@ def handle_browser(message: str):
 
     for site, url in sites.items():
         if f"open {site}" in msg:
-            webbrowser.open(url)
-            return f"Opening {site}"
+            return {
+                "message": f"Opening {site}",
+                "action": "open_url",
+                "url": url
+            }
 
     if "search" in msg:
         q = msg.replace("search", "").strip()
         url = f"https://google.com/search?q={q}"
-        webbrowser.open(url)
-        return f"Searching {q}"
+        return {
+            "message": f"Searching {q}",
+            "action": "open_url",
+            "url": url
+        }
 
     return None
 
@@ -80,11 +86,7 @@ async def chat(req: ChatRequest):
 
     browser = handle_browser(req.message)
     if browser:
-        return {
-            "message": browser,
-            "tools_used": ["browser"],
-            "execution_time": time.time() - start
-        }
+    return browser
 
     msg = req.message.lower()
 
