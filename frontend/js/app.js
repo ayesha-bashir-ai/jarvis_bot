@@ -1,116 +1,58 @@
-﻿// JARVIS Main Application (PRODUCTION FIXED VERSION)
-class JARVISApp {
+﻿class JARVISApp {
     constructor() {
         this.apiEndpoint = localStorage.getItem('apiEndpoint') ||
             "https://jarvisbot-production-5eb2.up.railway.app";
 
         this.sessionId = localStorage.getItem('sessionId') ||
-            'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            'session_' + Date.now();
 
         this.messageCount = parseInt(localStorage.getItem('messageCount') || '0');
-        this.voiceEnabled = localStorage.getItem('voiceEnabled') === 'true';
+
+        // MODULES
+        this.chat = new ChatModule();
+        this.ui = new UIModule();
+        this.voice = new VoiceModule();
+
         this.startTime = Date.now();
     }
 
     async init() {
+        this.chat.init();
         this.bindEvents();
-        this.updateUI();
-        await this.checkConnection();
+        this.ui.updateSessionInfo();
         this.startUptimeTimer();
         console.log("JARVIS Ready");
     }
 
-    // ---------------- EVENTS (FULL FIXED) ----------------
     bindEvents() {
-        console.log("Binding events...");
+        document.getElementById('sendBtn')?.addEventListener('click', () => this.sendMessage());
 
-        const sendBtn = document.getElementById('sendBtn');
-        const input = document.getElementById('messageInput');
-        const clearBtn = document.getElementById('clearChat');
+        document.getElementById('messageInput')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.sendMessage();
+        });
 
-        const micBtn = document.getElementById('micBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const themeToggle = document.getElementById('themeToggle');
-        const voiceToggle = document.getElementById('voiceToggle');
+        document.getElementById('clearChat')?.addEventListener('click', () => {
+            this.chat.clearChat();
+        });
 
-        console.log("sendBtn:", sendBtn);
-        console.log("messageInput:", input);
+        document.getElementById('themeToggle')?.addEventListener('click', () => {
+            this.ui.toggleTheme();
+        });
 
-        // SEND MESSAGE
-        if (sendBtn) {
-            sendBtn.onclick = () => this.sendMessage();
-        }
-
-        // ENTER KEY
-        if (input) {
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') this.sendMessage();
-            });
-        }
-
-        // CLEAR CHAT
-        if (clearBtn) {
-            clearBtn.onclick = () => this.clearChat();
-        }
-
-        // MIC BUTTON 🎤
-        if (micBtn) {
-            micBtn.onclick = () => {
-                alert("Voice feature not connected yet");
-            };
-        }
-
-        // SETTINGS ⚙
-        if (settingsBtn) {
-            settingsBtn.onclick = () => {
-                const modal = document.getElementById("settingsModal");
-                if (modal) modal.style.display = "flex";
-            };
-        }
-
-        // THEME 🎨
-        if (themeToggle) {
-            themeToggle.onclick = () => {
-                document.body.classList.toggle("light-theme");
-            };
-        }
-
-        // VOICE TOGGLE 🔊
-        if (voiceToggle) {
-            voiceToggle.onclick = () => {
-                this.voiceEnabled = !this.voiceEnabled;
-                localStorage.setItem('voiceEnabled', this.voiceEnabled);
-                alert("Voice: " + this.voiceEnabled);
-            };
-        }
+        document.getElementById('micBtn')?.addEventListener('click', () => {
+            this.voice.startListening();
+        });
     }
 
-    // ---------------- UI ----------------
-    updateUI() {
-        const set = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = val;
-        };
-
-        set('msgCount', this.messageCount);
-
-        const sessionEl = document.getElementById('sessionId');
-        if (sessionEl) sessionEl.textContent = this.sessionId.slice(0, 8) + "...";
-
-        const api = document.getElementById('apiEndpoint');
-        if (api) api.value = this.apiEndpoint;
-    }
-
-    // ---------------- CHAT ----------------
     async sendMessage() {
         const input = document.getElementById('messageInput');
-        const message = input?.value.trim();
-
+        const message = input.value.trim();
         if (!message) return;
 
-        this.addMessage(message, "user");
+        this.chat.addMessage(message, "user");
         input.value = "";
-        this.showTyping();
+
+        this.chat.showTypingIndicator();
 
         try {
             const res = await fetch(`${this.apiEndpoint}/api/v1/chat`, {
@@ -118,98 +60,36 @@ class JARVISApp {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message,
-                    session_id: this.sessionId,
-                    user_id: "user1"
+                    session_id: this.sessionId
                 })
             });
 
-            if (!res.ok) throw new Error("Server error");
-
             const data = await res.json();
-            this.hideTyping();
 
-            this.addMessage(data.message, "assistant");
+            this.chat.hideTypingIndicator();
+            this.chat.addMessage(data.message, "assistant");
 
-            if (data.action === "open_url" && data.url) {
-                window.open(data.url, "_blank");
+            if (this.voice.isVoiceEnabled) {
+                this.voice.speakText(data.message);
             }
 
             this.messageCount++;
             localStorage.setItem("messageCount", this.messageCount);
 
         } catch (err) {
-            console.error(err);
-            this.hideTyping();
-            this.addMessage("Backend error. Check server.", "assistant");
+            this.chat.hideTypingIndicator();
+            this.chat.addMessage("Server error ❌", "assistant");
         }
     }
 
-    // ---------------- MESSAGES ----------------
-    addMessage(text, sender) {
-        const chat = document.getElementById("chatMessages");
-        if (!chat) return;
-
-        const div = document.createElement("div");
-        div.className = `message ${sender}`;
-
-        const avatar = sender === "user" ? "👤" : "🤖";
-
-        div.innerHTML = `
-            <div class="message-avatar">${avatar}</div>
-            <div class="message-content">${text}</div>
-        `;
-
-        chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
-    }
-
-    showTyping() {
-        const chat = document.getElementById("chatMessages");
-        if (!chat) return;
-
-        const div = document.createElement("div");
-        div.id = "typing";
-        div.className = "message assistant";
-        div.innerHTML = "🤖 typing...";
-        chat.appendChild(div);
-    }
-
-    hideTyping() {
-        const t = document.getElementById("typing");
-        if (t) t.remove();
-    }
-
-    // ---------------- CONNECTION ----------------
-    async checkConnection() {
-        try {
-            await fetch(`${this.apiEndpoint}/health`);
-            console.log("Backend Connected");
-        } catch {
-            console.log("Backend Offline");
-        }
-    }
-
-    // ---------------- CLEAR CHAT ----------------
-    clearChat() {
-        const chat = document.getElementById("chatMessages");
-        if (chat) chat.innerHTML = "";
-
-        this.messageCount = 0;
-        localStorage.setItem("messageCount", "0");
-        this.updateUI();
-    }
-
-    // ---------------- UPTIME ----------------
     startUptimeTimer() {
         setInterval(() => {
             const uptime = Math.floor((Date.now() - this.startTime) / 1000);
-            const el = document.getElementById("uptime");
-            if (el) el.textContent = uptime + "s";
+            document.getElementById("uptime").textContent = uptime + "s";
         }, 1000);
     }
 }
 
-// ---------------- SAFE INIT ----------------
 document.addEventListener("DOMContentLoaded", () => {
     window.jarvis = new JARVISApp();
     window.jarvis.init();
