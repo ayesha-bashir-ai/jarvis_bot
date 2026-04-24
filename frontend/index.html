@@ -280,19 +280,19 @@
             </div>
             <div class="modal-body">
                 <div class="settings-group">
-                    <label class="settings-label">
-                        <i class="fas fa-server"></i>
-                        API Endpoint
-                    </label>
-                    <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://127.0.0.1:8000">
+                    <label class="settings-label" for="apiEndpoint">
+    <i class="fas fa-server"></i>
+    API Endpoint
+</label>
+                   <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://127.0.0.1:8000">
                     <p class="settings-hint">Backend API server address</p>
                 </div>
                 
                 <div class="settings-group">
-                    <label class="settings-label">
-                        <i class="fas fa-id-card"></i>
-                        Session ID
-                    </label>
+                    <label class="settings-label" for="sessionIdInput">
+    <i class="fas fa-id-card"></i>
+    Session ID
+</label>
                     <div class="settings-input-group">
                         <input type="text" id="sessionIdInput" class="settings-input" placeholder="Session ID" readonly>
                         <button id="newSessionBtn" class="settings-btn-small">
@@ -324,10 +324,11 @@
                 </div>
                 
                 <div class="settings-group">
-                    <label class="settings-label">
-                        <i class="fas fa-microphone"></i>
-                        Voice Language
-                    </label>
+                    <label class="settings-label" for="voiceSelect">
+    <i class="fas fa-microphone"></i>
+    Voice Language
+</label>
+<select id="voiceSelect" class="settings-select">
                     <select id="voiceSelect" class="settings-select">
                         <option value="en-US">English (US)</option>
                         <option value="en-GB">English (UK)</option>
@@ -344,19 +345,21 @@
                 
                 <div class="settings-group">
                     <label class="settings-label">
-                        <i class="fas fa-volume-up"></i>
-                        Voice Settings
-                    </label>
-                    <div class="settings-slider">
-                        <span>Speed</span>
-                        <input type="range" id="voiceSpeed" min="0.5" max="2" step="0.1" value="1">
-                        <span id="speedValue">1.0x</span>
-                    </div>
-                    <div class="settings-slider">
-                        <span>Pitch</span>
-                        <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" value="1">
-                        <span id="pitchValue">1.0x</span>
-                    </div>
+    <i class="fas fa-volume-up"></i>
+    Voice Settings
+</label>
+
+<div class="settings-slider">
+    <label for="voiceSpeed">Speed</label>
+    <input type="range" id="voiceSpeed" min="0.5" max="2" step="0.1" value="1">
+    <span id="speedValue">1.0x</span>
+</div>
+
+<div class="settings-slider">
+    <label for="voicePitch">Pitch</label>
+    <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" value="1">
+    <span id="pitchValue">1.0x</span>
+</div>
                 </div>
                 
                 <div class="settings-group">
@@ -366,7 +369,10 @@
                     </label>
                     <div class="settings-checkbox">
                         <input type="checkbox" id="longTermMemory" checked>
-                        <label for="longTermMemory">Enable Long-term Memory</label>
+<label for="longTermMemory">Enable Long-term Memory</label>
+
+<input type="checkbox" id="contextAwareness" checked>
+<label for="contextAwareness">Enable Context Awareness</label>
                     </div>
                     <div class="settings-checkbox">
                         <input type="checkbox" id="contextAwareness" checked>
