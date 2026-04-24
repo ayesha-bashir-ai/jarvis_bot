@@ -278,118 +278,156 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body">
-                <div class="settings-group">
-                    <label class="settings-label" for="apiEndpoint">
-    <i class="fas fa-server"></i>
-    API Endpoint
-</label>
-                   <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://127.0.0.1:8000">
-                    <p class="settings-hint">Backend API server address</p>
-                </div>
-                
-                <div class="settings-group">
-                    <label class="settings-label" for="sessionIdInput">
-    <i class="fas fa-id-card"></i>
-    Session ID
-</label>
-                    <div class="settings-input-group">
-                        <input type="text" id="sessionIdInput" class="settings-input" placeholder="Session ID" readonly>
-                        <button id="newSessionBtn" class="settings-btn-small">
-                            <i class="fas fa-sync-alt"></i> New
-                        </button>
-                    </div>
-                    <p class="settings-hint">Unique identifier for your conversation session</p>
-                </div>
-                
-                <div class="settings-group">
-                    <label class="settings-label">
-                        <i class="fas fa-palette"></i>
-                        Theme
-                    </label>
-                    <div class="theme-options">
-                        <button class="theme-option" data-theme="dark">
-                            <i class="fas fa-moon"></i>
-                            <span>Dark</span>
-                        </button>
-                        <button class="theme-option" data-theme="light">
-                            <i class="fas fa-sun"></i>
-                            <span>Light</span>
-                        </button>
-                        <button class="theme-option" data-theme="cyber">
-                            <i class="fas fa-microchip"></i>
-                            <span>Cyberpunk</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="settings-group">
-                    <label class="settings-label" for="voiceSelect">
-    <i class="fas fa-microphone"></i>
-    Voice Language
-</label>
-<select id="voiceSelect" class="settings-select">
-                    <select id="voiceSelect" class="settings-select">
-                        <option value="en-US">English (US)</option>
-                        <option value="en-GB">English (UK)</option>
-                        <option value="es-ES">Español</option>
-                        <option value="fr-FR">Français</option>
-                        <option value="de-DE">Deutsch</option>
-                        <option value="it-IT">Italiano</option>
-                        <option value="pt-BR">Português</option>
-                        <option value="ja-JP">日本語</option>
-                        <option value="ko-KR">한국어</option>
-                        <option value="zh-CN">中文</option>
-                    </select>
-                </div>
-                
-                <div class="settings-group">
-                    <label class="settings-label">
-    <i class="fas fa-volume-up"></i>
-    Voice Settings
-</label>
+            ```html
+<!-- FIXED SETTINGS SECTION ONLY (replace your settings modal body with this) -->
 
-<div class="settings-slider">
-    <label for="voiceSpeed">Speed</label>
-    <input type="range" id="voiceSpeed" min="0.5" max="2" step="0.1" value="1">
-    <span id="speedValue">1.0x</span>
-</div>
+<div class="modal-body">
 
-<div class="settings-slider">
-    <label for="voicePitch">Pitch</label>
-    <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" value="1">
-    <span id="pitchValue">1.0x</span>
-</div>
-                </div>
-                
-                <div class="settings-group">
-                    <label class="settings-label">
-                        <i class="fas fa-database"></i>
-                        Memory Settings
-                    </label>
-                    <div class="settings-checkbox">
-                        <input type="checkbox" id="longTermMemory" checked>
-<label for="longTermMemory">Enable Long-term Memory</label>
-
-<input type="checkbox" id="contextAwareness" checked>
-<label for="contextAwareness">Enable Context Awareness</label>
-                    </div>
-                    <div class="settings-checkbox">
-                        <input type="checkbox" id="contextAwareness" checked>
-                        <label for="contextAwareness">Enable Context Awareness</label>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="modal-btn modal-btn-secondary" id="cancelSettingsBtn">
-                    Cancel
-                </button>
-                <button class="modal-btn modal-btn-primary" id="saveSettingsBtn">
-                    <i class="fas fa-save"></i> Save Changes
-                </button>
-            </div>
-        </div>
+    <!-- API -->
+    <div class="settings-group">
+        <label class="settings-label" for="apiEndpoint">
+            <i class="fas fa-server"></i>
+            API Endpoint
+        </label>
+        <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://127.0.0.1:8000">
+        <p class="settings-hint">Backend API server address</p>
     </div>
+
+    <!-- Settings Modal -->
+<div class="modal" id="settingsModal">
+    <div class="modal-container">
+
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-cog"></i>
+                Settings
+            </h3>
+            <button class="modal-close" id="closeModalBtn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="modal-body">
+
+            <!-- API -->
+            <div class="settings-group">
+                <label class="settings-label" for="apiEndpoint">
+                    <i class="fas fa-server"></i>
+                    API Endpoint
+                </label>
+                <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://127.0.0.1:8000">
+                <p class="settings-hint">Backend API server address</p>
+            </div>
+
+            <!-- SESSION -->
+            <div class="settings-group">
+                <label class="settings-label" for="sessionIdInput">
+                    <i class="fas fa-id-card"></i>
+                    Session ID
+                </label>
+
+                <div class="settings-input-group">
+                    <input type="text" id="sessionIdInput" class="settings-input" readonly>
+                    <button id="newSessionBtn" class="settings-btn-small">
+                        <i class="fas fa-sync-alt"></i> New
+                    </button>
+                </div>
+
+                <p class="settings-hint">Unique identifier for your conversation session</p>
+            </div>
+
+            <!-- THEME -->
+            <div class="settings-group">
+                <label class="settings-label">
+                    <i class="fas fa-palette"></i>
+                    Theme
+                </label>
+
+                <div class="theme-options">
+                    <button class="theme-option" data-theme="dark">
+                        <i class="fas fa-moon"></i><span>Dark</span>
+                    </button>
+                    <button class="theme-option" data-theme="light">
+                        <i class="fas fa-sun"></i><span>Light</span>
+                    </button>
+                    <button class="theme-option" data-theme="cyber">
+                        <i class="fas fa-microchip"></i><span>Cyberpunk</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- VOICE LANGUAGE -->
+            <div class="settings-group">
+                <label class="settings-label" for="voiceSelect">
+                    <i class="fas fa-microphone"></i>
+                    Voice Language
+                </label>
+
+                <select id="voiceSelect" class="settings-select">
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                    <option value="es-ES">Español</option>
+                    <option value="fr-FR">Français</option>
+                    <option value="de-DE">Deutsch</option>
+                    <option value="it-IT">Italiano</option>
+                    <option value="pt-BR">Português</option>
+                    <option value="ja-JP">日本語</option>
+                    <option value="ko-KR">한국어</option>
+                    <option value="zh-CN">中文</option>
+                </select>
+            </div>
+
+            <!-- VOICE SETTINGS -->
+            <div class="settings-group">
+                <label class="settings-label">
+                    <i class="fas fa-volume-up"></i>
+                    Voice Settings
+                </label>
+
+                <div class="settings-slider">
+                    <label for="voiceSpeed">Speed</label>
+                    <input type="range" id="voiceSpeed" min="0.5" max="2" step="0.1" value="1">
+                    <span id="speedValue">1.0x</span>
+                </div>
+
+                <div class="settings-slider">
+                    <label for="voicePitch">Pitch</label>
+                    <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" value="1">
+                    <span id="pitchValue">1.0x</span>
+                </div>
+            </div>
+
+            <!-- MEMORY SETTINGS -->
+            <div class="settings-group">
+                <label class="settings-label">
+                    <i class="fas fa-database"></i>
+                    Memory Settings
+                </label>
+
+                <div class="settings-checkbox">
+                    <input type="checkbox" id="longTermMemory" checked>
+                    <label for="longTermMemory">Enable Long-term Memory</label>
+                </div>
+
+                <div class="settings-checkbox">
+                    <input type="checkbox" id="contextAwareness" checked>
+                    <label for="contextAwareness">Enable Context Awareness</label>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-secondary" id="cancelSettingsBtn">
+                Cancel
+            </button>
+            <button class="modal-btn modal-btn-primary" id="saveSettingsBtn">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </div>
+
+    </div>
+</div>
     
     <!-- Toast Notification -->
     <div class="toast-notification" id="toastNotification">
@@ -398,7 +436,7 @@
             <span id="toastMessage"></span>
         </div>
     </div>
-    
+     </div>
     <!-- JavaScript Modules -->
    <script src="js/utils.js"></script>
 <script src="js/chat.js"></script>
