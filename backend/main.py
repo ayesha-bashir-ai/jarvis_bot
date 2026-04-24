@@ -10,6 +10,13 @@ from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from fastapi.responses import FileResponse
+
+app = FastAPI()
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("static/favicon.ico")
 # -------------------
 # LOAD ENV
 # -------------------

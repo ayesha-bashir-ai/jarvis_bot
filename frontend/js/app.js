@@ -20,7 +20,7 @@ class JARVISApp {
         console.log("JARVIS Ready");
     }
 
-    // ---------------- EVENTS (FIXED SAFE BINDING) ----------------
+    // ---------------- EVENTS (FULL FIXED) ----------------
     bindEvents() {
         console.log("Binding events...");
 
@@ -28,21 +28,60 @@ class JARVISApp {
         const input = document.getElementById('messageInput');
         const clearBtn = document.getElementById('clearChat');
 
+        const micBtn = document.getElementById('micBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const themeToggle = document.getElementById('themeToggle');
+        const voiceToggle = document.getElementById('voiceToggle');
+
         console.log("sendBtn:", sendBtn);
         console.log("messageInput:", input);
 
+        // SEND MESSAGE
         if (sendBtn) {
             sendBtn.onclick = () => this.sendMessage();
         }
 
+        // ENTER KEY
         if (input) {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') this.sendMessage();
             });
         }
 
+        // CLEAR CHAT
         if (clearBtn) {
             clearBtn.onclick = () => this.clearChat();
+        }
+
+        // MIC BUTTON 🎤
+        if (micBtn) {
+            micBtn.onclick = () => {
+                alert("Voice feature not connected yet");
+            };
+        }
+
+        // SETTINGS ⚙
+        if (settingsBtn) {
+            settingsBtn.onclick = () => {
+                const modal = document.getElementById("settingsModal");
+                if (modal) modal.style.display = "flex";
+            };
+        }
+
+        // THEME 🎨
+        if (themeToggle) {
+            themeToggle.onclick = () => {
+                document.body.classList.toggle("light-theme");
+            };
+        }
+
+        // VOICE TOGGLE 🔊
+        if (voiceToggle) {
+            voiceToggle.onclick = () => {
+                this.voiceEnabled = !this.voiceEnabled;
+                localStorage.setItem('voiceEnabled', this.voiceEnabled);
+                alert("Voice: " + this.voiceEnabled);
+            };
         }
     }
 
@@ -170,7 +209,7 @@ class JARVISApp {
     }
 }
 
-// ---------------- SAFE INIT (IMPORTANT FIX) ----------------
+// ---------------- SAFE INIT ----------------
 document.addEventListener("DOMContentLoaded", () => {
     window.jarvis = new JARVISApp();
     window.jarvis.init();
