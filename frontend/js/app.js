@@ -1,33 +1,12 @@
-// ===============================
-// ENDPOINTS
-// ===============================
-const FALLBACK_ENDPOINTS = [
-    'https://jarvisbot-production-5eb2.up.railway.app',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-];
-
-function defaultStartingEndpoint() {
-    try {
-        if (window.location.protocol === 'file:') {
-            return 'http://localhost:8000';
-        }
-    } catch (_) {}
-    return '';
-}
-
-// ===============================
-// MAIN APP
-// ===============================
 class JARVISApp {
     constructor() {
         const storedEndpoint = localStorage.getItem('apiEndpoint');
 
-        this.userConfiguredEndpoint = !!(storedEndpoint && storedEndpoint.trim());
-
-        this.apiEndpoint = this.userConfiguredEndpoint
+        // ✅ FIX (Replit migration): default to empty so requests are same-origin
+        // (works behind the Replit proxy). No more hardcoded localhost:8000.
+        this.apiEndpoint = (storedEndpoint && storedEndpoint.trim())
             ? storedEndpoint.trim()
-            : defaultStartingEndpoint();
+            : "";
 
         this.sessionId =
             localStorage.getItem('sessionId') ||
@@ -43,45 +22,19 @@ class JARVISApp {
         this.voice = new VoiceModule();
 
         this.startTime = Date.now();
-
-        this._sending = false;
-        this._suggestionsBound = false;
     }
 
-    // ===============================
-    // INIT
-    // ===============================
     async init() {
         this.chat.init();
         this.bindEvents();
         this.ui.updateSessionInfo();
-
-        const msgEl = document.getElementById("msgCount");
-        if (msgEl) msgEl.textContent = this.messageCount;
-
         this.startUptimeTimer();
         this.checkConnection();
 
         setInterval(() => this.checkConnection(), 15000);
 
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") this.closeSettings();
-        });
-
         console.log("JARVIS Ready");
-    }
-
-    // ===============================
-    // API CHECK
-    // ===============================
-    async _probeEndpoint(base) {
-        try {
-            const res = await fetch(`${base}/api/health`, { cache: 'no-store' });
-            if (!res.ok) return null;
-            return await res.json();
-        } catch (_) {
-            return null;
-        }
+        console.log("API:", this.apiEndpoint);
     }
 
     async checkConnection() {
@@ -91,50 +44,30 @@ class JARVISApp {
         const label = el.querySelector('span:last-child');
         const dot = el.querySelector('.status-dot');
 
-        let data = await this._probeEndpoint(this.apiEndpoint || "");
+        const BASE_URL = this.apiEndpoint || "";
 
-        if (!data && !this.userConfiguredEndpoint) {
-            for (const candidate of FALLBACK_ENDPOINTS) {
-                const result = await this._probeEndpoint(candidate);
-                if (result) {
-                    this.apiEndpoint = candidate;
-                    data = result;
-                    break;
-                }
-            }
-        }
+        try {
+            const res = await fetch(`${BASE_URL}/api/health`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('bad status');
 
-        if (data) {
+            const data = await res.json();
+
             if (label)
-                label.textContent = data.ai_enabled
-                    ? 'Online'
-                    : 'Online (offline AI)';
+                label.textContent = data.ai_enabled ? 'Online' : 'Online (offline AI)';
             if (dot) dot.style.background = '#22c55e';
-        } else {
+        } catch (err) {
             if (label) label.textContent = 'Offline';
             if (dot) dot.style.background = '#ef4444';
         }
     }
 
-    getBaseURL() {
-        return this.apiEndpoint?.trim()
-            ? this.apiEndpoint
-            : 'https://jarvisbot-production-5eb2.up.railway.app';
-    }
-
-    // ===============================
-    // EVENTS
-    // ===============================
     bindEvents() {
         document.getElementById('sendBtn')
             ?.addEventListener('click', () => this.sendMessage());
 
         document.getElementById('messageInput')
             ?.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
+                if (e.key === 'Enter') this.sendMessage();
             });
 
         document.getElementById('clearChat')
@@ -149,116 +82,125 @@ class JARVISApp {
         document.getElementById('voiceCommandBtn')
             ?.addEventListener('click', () => this.voice.startListening());
 
+        // ✅ FIX #2: Cancel button in the listening overlay was never wired up.
         document.getElementById('voiceCancelBtn')
             ?.addEventListener('click', () => this.voice.stopListening());
 
-        document.getElementById('settingsBtn')
-            ?.addEventListener('click', () => this.openSettings());
-
-        document.getElementById('closeModalBtn')
-            ?.addEventListener('click', () => this.closeSettings());
-
-        document.getElementById('cancelSettingsBtn')
-            ?.addEventListener('click', () => this.closeSettings());
-
-        document.getElementById('saveSettingsBtn')
-            ?.addEventListener('click', () => this.saveSettings());
-
-        // voice toggle
         document.getElementById('voiceToggle')
-            ?.addEventListener('click', () => this.toggleVoiceUI());
+            ?.addEventListener('click', (e) => {
+                this.voice.toggleVoice();
+
+                const btn = e.currentTarget;
+                const label = btn.querySelector('span');
+
+                if (label)
+                    label.textContent =
+                        this.voice.isVoiceEnabled ? 'Voice On' : 'Voice Off';
+
+                btn.classList.toggle('active', this.voice.isVoiceEnabled);
+            });
 
         this.bindSuggestionCards();
+
+        document.querySelectorAll('.theme-option').forEach((opt) => {
+            opt.addEventListener('click', () => {
+                const theme = opt.getAttribute('data-theme');
+                if (theme) this.ui.applyTheme(theme);
+            });
+        });
+
+        document.getElementById('mobileMenuBtn')
+            ?.addEventListener('click', () => {
+                document.querySelector('.sidebar')?.classList.toggle('open');
+            });
+
+        document.getElementById('emojiBtn')
+            ?.addEventListener('click', () => {
+                const input = document.getElementById('messageInput');
+                if (input) {
+                    input.value += ' 🙂';
+                    input.focus();
+                }
+            });
+
+        document.getElementById('attachBtn')
+            ?.addEventListener('click', () => {
+                this.chat.addMessage('Attachments are not supported yet.', 'assistant');
+            });
+
+        const settingsModal = document.getElementById('settingsModal');
+
+        const openSettings = () => {
+            if (!settingsModal) return;
+            const apiInput = document.getElementById('apiEndpoint');
+            const sessionInput = document.getElementById('sessionIdInput');
+            if (apiInput) apiInput.value = this.apiEndpoint;
+            if (sessionInput) sessionInput.value = this.sessionId;
+            settingsModal.classList.add('active');
+        };
+
+        const closeSettings = () => {
+            settingsModal?.classList.remove('active');
+        };
+
+        document.getElementById('settingsBtn')?.addEventListener('click', openSettings);
+        document.getElementById('closeModalBtn')?.addEventListener('click', closeSettings);
+        document.getElementById('cancelSettingsBtn')?.addEventListener('click', closeSettings);
+
+        settingsModal?.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeSettings();
+        });
+
+        document.getElementById('saveSettingsBtn')
+            ?.addEventListener('click', () => {
+                const apiInput = document.getElementById('apiEndpoint');
+
+                if (apiInput && apiInput.value.trim() !== '') {
+                    this.apiEndpoint = apiInput.value.trim();
+                    localStorage.setItem('apiEndpoint', this.apiEndpoint);
+                } else {
+                    this.apiEndpoint = "";
+                    localStorage.removeItem('apiEndpoint');
+                }
+
+                closeSettings();
+                this.checkConnection();
+            });
+
+        document.getElementById('newSessionBtn')
+            ?.addEventListener('click', () => {
+                this.sessionId = 'session_' + Date.now();
+                localStorage.setItem('sessionId', this.sessionId);
+
+                const sessionInput = document.getElementById('sessionIdInput');
+                if (sessionInput) sessionInput.value = this.sessionId;
+
+                this.ui.updateSessionInfo();
+            });
     }
 
-    // ===============================
-    // SUGGESTIONS
-    // ===============================
     bindSuggestionCards() {
-        if (this._suggestionsBound) return;
-        this._suggestionsBound = true;
+        document.querySelectorAll('.suggestion-card').forEach((card) => {
+            if (card.dataset.bound === '1') return;
+            card.dataset.bound = '1';
 
-        document.addEventListener('click', (e) => {
-            const card = e.target.closest('.suggestion-card');
-            if (!card) return;
+            card.addEventListener('click', () => {
+                const msg = card.getAttribute('data-msg');
+                if (!msg) return;
 
-            const value =
-                card.getAttribute('data-msg') ||
-                card.querySelector("span")?.textContent?.trim();
+                const input = document.getElementById('messageInput');
+                if (input) input.value = msg;
 
-            const input = document.getElementById('messageInput');
-
-            if (input && value) {
-                input.value = value;
-                input.focus();
-            }
+                this.sendMessage();
+            });
         });
     }
 
-    // ===============================
-    // SETTINGS
-    // ===============================
-    openSettings() {
-        document.getElementById("settingsModal")?.classList.add("active");
-    }
-
-    closeSettings() {
-        document.getElementById("settingsModal")?.classList.remove("active");
-    }
-
-    saveSettings() {
-        const apiInput = document.getElementById('apiEndpoint');
-
-        if (apiInput && apiInput.value.trim()) {
-            this.apiEndpoint = apiInput.value.trim();
-            this.userConfiguredEndpoint = true;
-            localStorage.setItem('apiEndpoint', this.apiEndpoint);
-        } else {
-            this.apiEndpoint = "";
-            this.userConfiguredEndpoint = false;
-            localStorage.removeItem('apiEndpoint');
-        }
-
-        this.checkConnection();
-        this.closeSettings();
-    }
-
-    // ===============================
-    // VOICE UI TOGGLE
-    // ===============================
-    toggleVoiceUI() {
-        if (!this.voice) return;
-
-        this.voice.toggleVoice();
-
-        const btn = document.getElementById('voiceToggle');
-        const icon = btn?.querySelector('i');
-
-        if (this.voice.isVoiceEnabled) {
-            icon?.classList.replace("fa-volume-mute", "fa-volume-up");
-            this.ui.showToast("Voice Enabled");
-        } else {
-            icon?.classList.replace("fa-volume-up", "fa-volume-mute");
-            this.ui.showToast("Voice Disabled");
-        }
-    }
-
-    // ===============================
-    // CHAT SEND
-    // ===============================
     async sendMessage() {
-        if (this._sending) return;
-        this._sending = true;
-
         const input = document.getElementById('messageInput');
         const message = input.value.trim();
 
-        if (!message) {
-            this._sending = false;
-            return;
-        }
-
-        this.chat.setResponseStartTime?.();
+        if (!message) return;
 
         this.chat.addMessage(message, "user");
         input.value = "";
@@ -266,7 +208,9 @@ class JARVISApp {
         this.chat.showTypingIndicator();
 
         try {
-            const res = await fetch(`${this.getBaseURL()}/api/v1/chat`, {
+            const BASE_URL = this.apiEndpoint || "";
+
+            const res = await fetch(`${BASE_URL}/api/v1/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -275,37 +219,42 @@ class JARVISApp {
                 })
             });
 
+            if (!res.ok) throw new Error("API error");
+
             const data = await res.json();
 
             this.chat.hideTypingIndicator();
             this.chat.addMessage(data.message, "assistant");
 
-            this.chat.setResponseEndTime?.();
-
             if (this.voice.isVoiceEnabled) {
                 this.voice.speakText(data.message);
+            }
+
+            // ✅ FIX #1: Handle structured actions returned by the backend
+            // (e.g. "open google" / "open youtube" / "open github" / "search ...").
+            if (data.action === "open_url" && data.url) {
+                const opened = window.open(data.url, "_blank", "noopener,noreferrer");
+                if (!opened) {
+                    this.chat.addMessage(
+                        `Your browser blocked the popup. Open it manually: ${data.url}`,
+                        "assistant"
+                    );
+                }
             }
 
             this.messageCount++;
             localStorage.setItem("messageCount", this.messageCount);
 
-            document.getElementById("msgCount")
-                ?.textContent = this.messageCount;
-
-            this.ui?.showToast("Message sent");
-
         } catch (err) {
             this.chat.hideTypingIndicator();
-            this.chat.addMessage("Server error ❌", "assistant");
+            this.chat.addMessage(
+                "Server error ❌ Check backend (port 8000)",
+                "assistant"
+            );
             console.error(err);
         }
-
-        this._sending = false;
     }
 
-    // ===============================
-    // UPTIME
-    // ===============================
     startUptimeTimer() {
         setInterval(() => {
             const uptime = Math.floor((Date.now() - this.startTime) / 1000);
@@ -315,9 +264,6 @@ class JARVISApp {
     }
 }
 
-// ===============================
-// BOOT
-// ===============================
 document.addEventListener("DOMContentLoaded", () => {
     window.jarvis = new JARVISApp();
     window.jarvis.init();
