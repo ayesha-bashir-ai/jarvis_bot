@@ -60,6 +60,56 @@
         document.getElementById('micBtn')?.addEventListener('click', () => {
             this.voice.startListening();
         });
+
+        document.getElementById('voiceCommandBtn')?.addEventListener('click', () => {
+            this.voice.startListening();
+        });
+
+        document.getElementById('voiceToggle')?.addEventListener('click', (e) => {
+            this.voice.toggleVoice();
+            const btn = e.currentTarget;
+            const label = btn.querySelector('span');
+            if (label) label.textContent = this.voice.isVoiceEnabled ? 'Voice On' : 'Voice Off';
+            btn.classList.toggle('active', this.voice.isVoiceEnabled);
+        });
+
+        document.querySelectorAll('.suggestion-card').forEach((card) => {
+            card.addEventListener('click', () => {
+                const msg = card.getAttribute('data-msg');
+                if (!msg) return;
+                const input = document.getElementById('messageInput');
+                if (input) input.value = msg;
+                this.sendMessage();
+            });
+        });
+
+        document.querySelectorAll('.theme-option').forEach((opt) => {
+            opt.addEventListener('click', () => {
+                const theme = opt.getAttribute('data-theme');
+                if (theme) this.ui.applyTheme(theme);
+            });
+        });
+
+        document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
+            document.querySelector('.sidebar')?.classList.toggle('open');
+        });
+
+        document.getElementById('emojiBtn')?.addEventListener('click', () => {
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.value += ' 🙂';
+                input.focus();
+            }
+        });
+
+        document.getElementById('attachBtn')?.addEventListener('click', () => {
+            this.chat.addMessage('Attachments are not supported yet.', 'assistant');
+        });
+
+        document.getElementById('settingsBtn')?.addEventListener('click', () => {
+            const modal = document.getElementById('settingsModal');
+            if (modal) modal.classList.toggle('open');
+        });
     }
 
     async sendMessage() {
