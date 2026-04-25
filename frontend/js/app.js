@@ -122,13 +122,36 @@ class JARVISApp {
         document.getElementById('voiceCancelBtn')
             ?.addEventListener('click', () => this.voice.stopListening());
 
-        this.bindSuggestionCards();
-
         document.getElementById('settingsBtn')
             ?.addEventListener('click', () => this.openSettings());
 
         document.getElementById('saveSettingsBtn')
             ?.addEventListener('click', () => this.saveSettings());
+
+        // ✅ FIXED: safe suggestion binding
+        this.bindSuggestionCards();
+    }
+
+    // ✅ FIXED + IMPROVED (no rebind issues)
+    bindSuggestionCards() {
+        document.addEventListener('click', (e) => {
+            const card = e.target.closest('.suggestion-card');
+            if (!card) return;
+
+            const value =
+                card.getAttribute('data-value') ||
+                card.textContent?.trim();
+
+            const input = document.getElementById('messageInput');
+
+            if (input && value) {
+                input.value = value;
+                input.focus();
+            }
+
+            // optional auto-send:
+            // this.sendMessage();
+        });
     }
 
     getBaseURL() {
@@ -180,38 +203,6 @@ class JARVISApp {
                 `Server error ❌ Could not reach backend.`,
                 "assistant"
             );
-            console.error(err);
-        }
-    }
-
-    async uploadFile(file) {
-        if (!file) return;
-
-        this.chat.addMessage(`📎 ${file.name}`, "user");
-        this.chat.showTypingIndicator();
-
-        try {
-            const BASE_URL = this.getBaseURL();
-
-            const form = new FormData();
-            form.append("file", file);
-            form.append("session_id", this.sessionId);
-
-            const res = await fetch(`${BASE_URL}/api/v1/upload`, {
-                method: "POST",
-                body: form,
-            });
-
-            const data = await res.json().catch(() => ({}));
-
-            this.chat.hideTypingIndicator();
-
-            const reply = data.message || "File processed.";
-            this.chat.addMessage(reply, "assistant");
-
-        } catch (err) {
-            this.chat.hideTypingIndicator();
-            this.chat.addMessage("Upload failed ❌", "assistant");
             console.error(err);
         }
     }
