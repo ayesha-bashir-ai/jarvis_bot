@@ -123,25 +123,10 @@ class JARVISApp {
                 }
             });
 
-        // ✅ FIX #3: Real file attachment — open a hidden file picker, then upload.
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*,text/*,.txt,.md,.csv,.json,.yaml,.yml,.xml,.html,.css,.js,.ts,.py,.log,.ini,.toml';
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
-        this._fileInput = fileInput;
-
         document.getElementById('attachBtn')
             ?.addEventListener('click', () => {
-                if (this._uploading) return;
-                fileInput.value = '';
-                fileInput.click();
+                this.chat.addMessage('Attachments are not supported yet.', 'assistant');
             });
-
-        fileInput.addEventListener('change', () => {
-            const file = fileInput.files && fileInput.files[0];
-            if (file) this.uploadFile(file);
-        });
 
         const settingsModal = document.getElementById('settingsModal');
 
@@ -267,51 +252,6 @@ class JARVISApp {
                 "assistant"
             );
             console.error(err);
-        }
-    }
-
-    // ✅ FIX #3 (cont): Sends the picked file to /api/v1/upload and shows the reply.
-    async uploadFile(file) {
-        if (!file) return;
-
-        const sizeKb = (file.size / 1024).toFixed(1);
-        this.chat.addMessage(`📎 ${file.name} (${sizeKb} KB)`, "user");
-        this.chat.showTypingIndicator();
-        this._uploading = true;
-
-        try {
-            const BASE_URL = this.apiEndpoint || "";
-
-            const form = new FormData();
-            form.append("file", file);
-            form.append("session_id", this.sessionId);
-
-            const res = await fetch(`${BASE_URL}/api/v1/upload`, {
-                method: "POST",
-                body: form,
-            });
-
-            const data = await res.json().catch(() => ({}));
-
-            this.chat.hideTypingIndicator();
-
-            const reply = data.message || (res.ok
-                ? "File uploaded."
-                : `Upload failed (status ${res.status}).`);
-            this.chat.addMessage(reply, "assistant");
-
-            if (this.voice.isVoiceEnabled && reply) {
-                this.voice.speakText(reply);
-            }
-
-            this.messageCount++;
-            localStorage.setItem("messageCount", this.messageCount);
-        } catch (err) {
-            this.chat.hideTypingIndicator();
-            this.chat.addMessage("Upload error ❌ Could not reach the server.", "assistant");
-            console.error(err);
-        } finally {
-            this._uploading = false;
         }
     }
 
