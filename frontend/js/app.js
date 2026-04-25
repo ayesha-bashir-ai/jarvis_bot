@@ -1,7 +1,6 @@
 ﻿class JARVISApp {
     constructor() {
-        this.apiEndpoint = localStorage.getItem('apiEndpoint') ||
-            "https://jarvisbot-production-5eb2.up.railway.app";
+        this.apiEndpoint = localStorage.getItem('apiEndpoint') || "";
 
         this.sessionId = localStorage.getItem('sessionId') ||
             'session_' + Date.now();
