@@ -2,13 +2,10 @@ class JARVISApp {
     constructor() {
         const storedEndpoint = localStorage.getItem('apiEndpoint');
 
-        // ✅ FIX 1: safe default backend (8000)
-        this.apiEndpoint =
-            storedEndpoint && storedEndpoint.trim() !== ""
-                ? storedEndpoint.trim()
-                : "http://localhost:8000";
-
-        // ❌ removed broken railway auto-reset logic (it was causing empty API)
+        // ✅ SINGLE SOURCE OF TRUTH (FIXED)
+        this.apiEndpoint = (storedEndpoint && storedEndpoint.trim())
+            ? storedEndpoint.trim()
+            : "http://localhost:8000";
 
         this.sessionId =
             localStorage.getItem('sessionId') ||
@@ -39,7 +36,7 @@ class JARVISApp {
         console.log("API:", this.apiEndpoint);
     }
 
-    // ✅ FIX 2: ALWAYS use backend URL (no relative path)
+    // ✅ FIXED: unified base URL usage
     async checkConnection() {
         const el = document.getElementById('connectionStatus');
         if (!el) return;
@@ -47,10 +44,10 @@ class JARVISApp {
         const label = el.querySelector('span:last-child');
         const dot = el.querySelector('.status-dot');
 
-        const base = this.apiEndpoint || "http://localhost:8000";
+        const BASE_URL = this.apiEndpoint || "http://localhost:8000";
 
         try {
-            const res = await fetch(`${base}/api/health`, {
+            const res = await fetch(`${BASE_URL}/api/health`, {
                 cache: 'no-store'
             });
 
@@ -213,7 +210,7 @@ class JARVISApp {
         });
     }
 
-    // ✅ FIX 3: safe API call always hits backend
+    // ✅ FIXED: consistent API usage
     async sendMessage() {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();
@@ -226,9 +223,9 @@ class JARVISApp {
         this.chat.showTypingIndicator();
 
         try {
-            const base = this.apiEndpoint || "http://localhost:8000";
+            const BASE_URL = this.apiEndpoint || "http://localhost:8000";
 
-            const res = await fetch(`${base}/api/v1/chat`, {
+            const res = await fetch(`${BASE_URL}/api/v1/chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
