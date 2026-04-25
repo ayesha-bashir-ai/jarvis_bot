@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -8,6 +8,9 @@ import uvicorn
 import os
 import time
 import random
+import base64
+import mimetypes
+import re
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -20,6 +23,17 @@ load_dotenv()
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_TEXT_CHARS = 20000  # cap text fed into the LLM
+TEXT_EXTENSIONS = {
+    ".txt", ".md", ".csv", ".tsv", ".json", ".yaml", ".yml", ".xml",
+    ".html", ".htm", ".css", ".js", ".ts", ".jsx", ".tsx", ".py",
+    ".rb", ".go", ".rs", ".java", ".c", ".cpp", ".h", ".sh", ".log",
+    ".ini", ".toml", ".env",
+}
 
 api_key = os.getenv("OPENROUTER_API_KEY")
 client = None
@@ -138,6 +152,145 @@ async def chat(req: ChatRequest):
         return {"message": "AI error occurred", "error": str(e)}
 
 
+# ---------- NEW: file upload endpoint ----------
+def _safe_filename(name: str) -> str:
+    name = os.path.basename(name or "upload")
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name)
+    return name[:120] or "upload"
+
+
+@app.post("/api/v1/upload")
+async def upload(
+    file: UploadFile = File(...),
+    message: str = Form(""),
+    session_id: str = Form("default"),
+):
+    start = time.time()
+
+    contents = await file.read()
+    size = len(contents)
+    if size == 0:
+        return {"message": "The uploaded file was empty.", "error": "empty_file"}
+    if size > MAX_UPLOAD_BYTES:
+        return {
+            "message": f"File is too large. Maximum size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+            "error": "file_too_large",
+        }
+
+    safe_session = re.sub(r"[^A-Za-z0-9._-]+", "_", session_id or "default")[:64] or "default"
+    session_dir = os.path.join(UPLOAD_DIR, safe_session)
+    os.makedirs(session_dir, exist_ok=True)
+
+    safe_name = _safe_filename(file.filename or "upload")
+    stamped_name = f"{int(time.time() * 1000)}_{safe_name}"
+    saved_path = os.path.join(session_dir, stamped_name)
+    with open(saved_path, "wb") as f:
+        f.write(contents)
+
+    mime = file.content_type or mimetypes.guess_type(safe_name)[0] or "application/octet-stream"
+    ext = os.path.splitext(safe_name)[1].lower()
+
+    user_note = (message or "").strip()
+    size_kb = round(size / 1024, 1)
+    base_ack = f"Got your file: {safe_name} ({size_kb} KB, {mime})."
+
+    is_image = mime.startswith("image/")
+    is_text = mime.startswith("text/") or ext in TEXT_EXTENSIONS
+
+    # No AI configured -> just acknowledge.
+    if client is None:
+        kind_msg = ""
+        if is_image:
+            kind_msg = " I can describe images once an AI key is configured."
+        elif is_text:
+            try:
+                preview = contents.decode("utf-8", errors="replace")[:300]
+                kind_msg = f"\n\nPreview:\n{preview}"
+            except Exception:
+                kind_msg = ""
+        return {
+            "message": base_ack + kind_msg + " (AI is offline; set OPENROUTER_API_KEY to enable analysis.)",
+            "filename": safe_name,
+            "size": size,
+            "mime": mime,
+        }
+
+    try:
+        if is_image:
+            b64 = base64.b64encode(contents).decode("ascii")
+            data_url = f"data:{mime};base64,{b64}"
+            prompt_text = user_note or "Describe this image in detail."
+            response = client.chat.completions.create(
+                model="openai/gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are JARVIS, a helpful AI assistant."},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_text},
+                            {"type": "image_url", "image_url": {"url": data_url}},
+                        ],
+                    },
+                ],
+            )
+            return {
+                "message": response.choices[0].message.content,
+                "filename": safe_name,
+                "size": size,
+                "mime": mime,
+                "execution_time": round(time.time() - start, 2),
+            }
+
+        if is_text:
+            try:
+                text = contents.decode("utf-8", errors="replace")
+            except Exception:
+                text = ""
+            truncated = len(text) > MAX_TEXT_CHARS
+            text = text[:MAX_TEXT_CHARS]
+            prompt_text = (
+                user_note
+                or "Summarize this file and point out anything important."
+            )
+            note = " (file was truncated for analysis)" if truncated else ""
+            response = client.chat.completions.create(
+                model="openai/gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are JARVIS, a helpful AI assistant."},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{prompt_text}{note}\n\n"
+                            f"--- File: {safe_name} ---\n{text}\n--- end of file ---"
+                        ),
+                    },
+                ],
+            )
+            return {
+                "message": response.choices[0].message.content,
+                "filename": safe_name,
+                "size": size,
+                "mime": mime,
+                "execution_time": round(time.time() - start, 2),
+            }
+
+        return {
+            "message": base_ack + " I saved it, but I can't read this file type yet (only images and text-based files are analyzed).",
+            "filename": safe_name,
+            "size": size,
+            "mime": mime,
+        }
+
+    except Exception as e:
+        return {
+            "message": "I saved your file but ran into an error while analyzing it.",
+            "filename": safe_name,
+            "size": size,
+            "mime": mime,
+            "error": str(e),
+        }
+
+
 @app.get("/api/health")
 def health():
     return {
@@ -166,4 +319,3 @@ if os.path.isdir(FRONTEND_DIR):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
-    
