@@ -20,7 +20,26 @@
         this.bindEvents();
         this.ui.updateSessionInfo();
         this.startUptimeTimer();
+        this.checkConnection();
+        setInterval(() => this.checkConnection(), 15000);
         console.log("JARVIS Ready");
+    }
+
+    async checkConnection() {
+        const el = document.getElementById('connectionStatus');
+        if (!el) return;
+        const label = el.querySelector('span:last-child');
+        const dot = el.querySelector('.status-dot');
+        try {
+            const res = await fetch(`${this.apiEndpoint}/api/health`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('bad status');
+            const data = await res.json();
+            if (label) label.textContent = data.ai_enabled ? 'Online' : 'Online (offline AI)';
+            if (dot) dot.style.background = '#22c55e';
+        } catch (err) {
+            if (label) label.textContent = 'Offline';
+            if (dot) dot.style.background = '#ef4444';
+        }
     }
 
     bindEvents() {
