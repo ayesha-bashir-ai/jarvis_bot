@@ -1,6 +1,12 @@
 ﻿class JARVISApp {
     constructor() {
-        this.apiEndpoint = localStorage.getItem('apiEndpoint') || "";
+        const storedEndpoint = localStorage.getItem('apiEndpoint') || "";
+        if (storedEndpoint.includes('railway.app') || storedEndpoint.includes('jarvisbot-production')) {
+            localStorage.removeItem('apiEndpoint');
+            this.apiEndpoint = "";
+        } else {
+            this.apiEndpoint = storedEndpoint;
+        }
 
         this.sessionId = localStorage.getItem('sessionId') ||
             'session_' + Date.now();
