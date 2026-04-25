@@ -2,10 +2,11 @@ class JARVISApp {
     constructor() {
         const storedEndpoint = localStorage.getItem('apiEndpoint');
 
-        // ✅ SINGLE SOURCE OF TRUTH (FIXED)
+        // ✅ FIX (Replit migration): default to empty so requests are same-origin
+        // (works behind the Replit proxy). No more hardcoded localhost:8000.
         this.apiEndpoint = (storedEndpoint && storedEndpoint.trim())
             ? storedEndpoint.trim()
-            : "http://localhost:8000";
+            : "";
 
         this.sessionId =
             localStorage.getItem('sessionId') ||
@@ -36,7 +37,6 @@ class JARVISApp {
         console.log("API:", this.apiEndpoint);
     }
 
-    // ✅ FIXED: unified base URL usage
     async checkConnection() {
         const el = document.getElementById('connectionStatus');
         if (!el) return;
@@ -44,24 +44,17 @@ class JARVISApp {
         const label = el.querySelector('span:last-child');
         const dot = el.querySelector('.status-dot');
 
-        const BASE_URL = this.apiEndpoint || "http://localhost:8000";
+        const BASE_URL = this.apiEndpoint || "";
 
         try {
-            const res = await fetch(`${BASE_URL}/api/health`, {
-                cache: 'no-store'
-            });
-
+            const res = await fetch(`${BASE_URL}/api/health`, { cache: 'no-store' });
             if (!res.ok) throw new Error('bad status');
 
             const data = await res.json();
 
             if (label)
-                label.textContent = data.ai_enabled
-                    ? 'Online'
-                    : 'Online (offline AI)';
-
+                label.textContent = data.ai_enabled ? 'Online' : 'Online (offline AI)';
             if (dot) dot.style.background = '#22c55e';
-
         } catch (err) {
             if (label) label.textContent = 'Offline';
             if (dot) dot.style.background = '#ef4444';
@@ -88,6 +81,10 @@ class JARVISApp {
 
         document.getElementById('voiceCommandBtn')
             ?.addEventListener('click', () => this.voice.startListening());
+
+        // ✅ FIX #2: Cancel button in the listening overlay was never wired up.
+        document.getElementById('voiceCancelBtn')
+            ?.addEventListener('click', () => this.voice.stopListening());
 
         document.getElementById('voiceToggle')
             ?.addEventListener('click', (e) => {
@@ -126,25 +123,34 @@ class JARVISApp {
                 }
             });
 
+        // ✅ FIX #3: Real file attachment — open a hidden file picker, then upload.
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*,text/*,.txt,.md,.csv,.json,.yaml,.yml,.xml,.html,.css,.js,.ts,.py,.log,.ini,.toml';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        this._fileInput = fileInput;
+
         document.getElementById('attachBtn')
             ?.addEventListener('click', () => {
-                this.chat.addMessage(
-                    'Attachments are not supported yet.',
-                    'assistant'
-                );
+                if (this._uploading) return;
+                fileInput.value = '';
+                fileInput.click();
             });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (file) this.uploadFile(file);
+        });
 
         const settingsModal = document.getElementById('settingsModal');
 
         const openSettings = () => {
             if (!settingsModal) return;
-
             const apiInput = document.getElementById('apiEndpoint');
             const sessionInput = document.getElementById('sessionIdInput');
-
             if (apiInput) apiInput.value = this.apiEndpoint;
             if (sessionInput) sessionInput.value = this.sessionId;
-
             settingsModal.classList.add('active');
         };
 
@@ -152,14 +158,9 @@ class JARVISApp {
             settingsModal?.classList.remove('active');
         };
 
-        document.getElementById('settingsBtn')
-            ?.addEventListener('click', openSettings);
-
-        document.getElementById('closeModalBtn')
-            ?.addEventListener('click', closeSettings);
-
-        document.getElementById('cancelSettingsBtn')
-            ?.addEventListener('click', closeSettings);
+        document.getElementById('settingsBtn')?.addEventListener('click', openSettings);
+        document.getElementById('closeModalBtn')?.addEventListener('click', closeSettings);
+        document.getElementById('cancelSettingsBtn')?.addEventListener('click', closeSettings);
 
         settingsModal?.addEventListener('click', (e) => {
             if (e.target === settingsModal) closeSettings();
@@ -173,7 +174,7 @@ class JARVISApp {
                     this.apiEndpoint = apiInput.value.trim();
                     localStorage.setItem('apiEndpoint', this.apiEndpoint);
                 } else {
-                    this.apiEndpoint = "http://localhost:8000";
+                    this.apiEndpoint = "";
                     localStorage.removeItem('apiEndpoint');
                 }
 
@@ -210,7 +211,6 @@ class JARVISApp {
         });
     }
 
-    // ✅ FIXED: consistent API usage
     async sendMessage() {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();
@@ -223,7 +223,7 @@ class JARVISApp {
         this.chat.showTypingIndicator();
 
         try {
-            const BASE_URL = this.apiEndpoint || "http://localhost:8000";
+            const BASE_URL = this.apiEndpoint || "";
 
             const res = await fetch(`${BASE_URL}/api/v1/chat`, {
                 method: "POST",
@@ -245,6 +245,18 @@ class JARVISApp {
                 this.voice.speakText(data.message);
             }
 
+            // ✅ FIX #1: Handle structured actions returned by the backend
+            // (e.g. "open google" / "open youtube" / "open github" / "search ...").
+            if (data.action === "open_url" && data.url) {
+                const opened = window.open(data.url, "_blank", "noopener,noreferrer");
+                if (!opened) {
+                    this.chat.addMessage(
+                        `Your browser blocked the popup. Open it manually: ${data.url}`,
+                        "assistant"
+                    );
+                }
+            }
+
             this.messageCount++;
             localStorage.setItem("messageCount", this.messageCount);
 
@@ -255,6 +267,51 @@ class JARVISApp {
                 "assistant"
             );
             console.error(err);
+        }
+    }
+
+    // ✅ FIX #3 (cont): Sends the picked file to /api/v1/upload and shows the reply.
+    async uploadFile(file) {
+        if (!file) return;
+
+        const sizeKb = (file.size / 1024).toFixed(1);
+        this.chat.addMessage(`📎 ${file.name} (${sizeKb} KB)`, "user");
+        this.chat.showTypingIndicator();
+        this._uploading = true;
+
+        try {
+            const BASE_URL = this.apiEndpoint || "";
+
+            const form = new FormData();
+            form.append("file", file);
+            form.append("session_id", this.sessionId);
+
+            const res = await fetch(`${BASE_URL}/api/v1/upload`, {
+                method: "POST",
+                body: form,
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            this.chat.hideTypingIndicator();
+
+            const reply = data.message || (res.ok
+                ? "File uploaded."
+                : `Upload failed (status ${res.status}).`);
+            this.chat.addMessage(reply, "assistant");
+
+            if (this.voice.isVoiceEnabled && reply) {
+                this.voice.speakText(reply);
+            }
+
+            this.messageCount++;
+            localStorage.setItem("messageCount", this.messageCount);
+        } catch (err) {
+            this.chat.hideTypingIndicator();
+            this.chat.addMessage("Upload error ❌ Could not reach the server.", "assistant");
+            console.error(err);
+        } finally {
+            this._uploading = false;
         }
     }
 
