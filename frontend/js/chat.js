@@ -14,8 +14,10 @@ class ChatModule {
         if (welcome) welcome.style.display = 'none';
     }
 
-    // ✅ FIXED: no duplication + safe restore
+    // ✅ FIXED: safer restore (prevents duplicate injection issues)
     showWelcome() {
+        if (!this.container) return;
+
         let welcome = document.getElementById('welcomeScreen');
 
         if (welcome) {
@@ -23,9 +25,10 @@ class ChatModule {
             return;
         }
 
-        if (!this.container || !this.welcomeHTML) return;
+        if (!this.welcomeHTML) return;
 
-        this.container.innerHTML = '';
+        // ⚠️ safety: avoid stacking multiple DOM restores
+        this.container.innerHTML = "";
 
         this.container.insertAdjacentHTML('afterbegin', this.welcomeHTML);
 
@@ -72,13 +75,13 @@ class ChatModule {
         document.getElementById("typing")?.remove();
     }
 
-    // ✅ FIXED: full clean reset (no leftover DOM bugs)
+    // ✅ FIXED: full reset + no ghost elements
     clearChat() {
         if (!this.container) return;
 
-        this.container.innerHTML = "";
-
         this.hideTypingIndicator();
+
+        this.container.innerHTML = "";
 
         this.showWelcome();
     }
