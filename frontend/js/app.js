@@ -1,12 +1,33 @@
+// Endpoints we'll probe (in order) when no apiEndpoint is configured.
+// - "" (same-origin) works on Replit and any single-server deploy.
+// - The Railway URL is the public production backend (used when the
+//   frontend is hosted somewhere without its own backend, e.g. GitHub Pages).
+// - The localhost entries cover the local dev setup with frontend on :3000
+//   and backend on :8000.
+const FALLBACK_ENDPOINTS = [
+    '',
+    'https://jarvisbot-production-5eb2.up.railway.app',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+];
+
+function defaultStartingEndpoint() {
+    try {
+        if (window.location.protocol === 'file:') return 'http://localhost:8000';
+    } catch (_) {}
+    return '';
+}
+
 class JARVISApp {
     constructor() {
         const storedEndpoint = localStorage.getItem('apiEndpoint');
 
-        // ✅ FIX (Replit migration): default to empty so requests are same-origin
-        // (works behind the Replit proxy). No more hardcoded localhost:8000.
-        this.apiEndpoint = (storedEndpoint && storedEndpoint.trim())
+        // If the user explicitly set one in Settings, always honor it.
+        // Otherwise start with same-origin and let checkConnection probe fallbacks.
+        this.userConfiguredEndpoint = !!(storedEndpoint && storedEndpoint.trim());
+        this.apiEndpoint = this.userConfiguredEndpoint
             ? storedEndpoint.trim()
-            : "";
+            : defaultStartingEndpoint();
 
         this.sessionId =
             localStorage.getItem('sessionId') ||
@@ -37,6 +58,16 @@ class JARVISApp {
         console.log("API:", this.apiEndpoint);
     }
 
+    async _probeEndpoint(base) {
+        try {
+            const res = await fetch(`${base}/api/health`, { cache: 'no-store' });
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (_) {
+            return null;
+        }
+    }
+
     async checkConnection() {
         const el = document.getElementById('connectionStatus');
         if (!el) return;
@@ -44,18 +75,31 @@ class JARVISApp {
         const label = el.querySelector('span:last-child');
         const dot = el.querySelector('.status-dot');
 
-        const BASE_URL = this.apiEndpoint || "";
+        // Try the current endpoint first.
+        let data = await this._probeEndpoint(this.apiEndpoint || "");
 
-        try {
-            const res = await fetch(`${BASE_URL}/api/health`, { cache: 'no-store' });
-            if (!res.ok) throw new Error('bad status');
+        // If that fails AND the user hasn't manually configured one,
+        // probe the fallback endpoints (same-origin → Railway → localhost).
+        if (!data && !this.userConfiguredEndpoint) {
+            for (const candidate of FALLBACK_ENDPOINTS) {
+                if (candidate === (this.apiEndpoint || "")) continue;
+                const result = await this._probeEndpoint(candidate);
+                if (result) {
+                    this.apiEndpoint = candidate;
+                    data = result;
+                    console.log("API switched to:", candidate || "(same origin)");
+                    break;
+                }
+            }
+        }
 
-            const data = await res.json();
-
+        if (data) {
             if (label)
-                label.textContent = data.ai_enabled ? 'Online' : 'Online (offline AI)';
+                label.textContent = data.ai_enabled
+                    ? 'Online'
+                    : 'Online (offline AI)';
             if (dot) dot.style.background = '#22c55e';
-        } catch (err) {
+        } else {
             if (label) label.textContent = 'Offline';
             if (dot) dot.style.background = '#ef4444';
         }
@@ -82,7 +126,7 @@ class JARVISApp {
         document.getElementById('voiceCommandBtn')
             ?.addEventListener('click', () => this.voice.startListening());
 
-        // ✅ FIX #2: Cancel button in the listening overlay was never wired up.
+        // ✅ FIX #2: Cancel button in the listening overlay.
         document.getElementById('voiceCancelBtn')
             ?.addEventListener('click', () => this.voice.stopListening());
 
@@ -123,10 +167,25 @@ class JARVISApp {
                 }
             });
 
+        // ✅ FIX #3: Real file attachment via hidden file picker + upload.
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*,text/*,.txt,.md,.csv,.json,.yaml,.yml,.xml,.html,.css,.js,.ts,.py,.log,.ini,.toml';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        this._fileInput = fileInput;
+
         document.getElementById('attachBtn')
             ?.addEventListener('click', () => {
-                this.chat.addMessage('Attachments are not supported yet.', 'assistant');
+                if (this._uploading) return;
+                fileInput.value = '';
+                fileInput.click();
             });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (file) this.uploadFile(file);
+        });
 
         const settingsModal = document.getElementById('settingsModal');
 
@@ -157,9 +216,11 @@ class JARVISApp {
 
                 if (apiInput && apiInput.value.trim() !== '') {
                     this.apiEndpoint = apiInput.value.trim();
+                    this.userConfiguredEndpoint = true;
                     localStorage.setItem('apiEndpoint', this.apiEndpoint);
                 } else {
                     this.apiEndpoint = "";
+                    this.userConfiguredEndpoint = false;
                     localStorage.removeItem('apiEndpoint');
                 }
 
@@ -248,10 +309,55 @@ class JARVISApp {
         } catch (err) {
             this.chat.hideTypingIndicator();
             this.chat.addMessage(
-                "Server error ❌ Check backend (port 8000)",
+                `Server error ❌ Could not reach backend at "${this.apiEndpoint || window.location.origin}". Check the backend is running, or update the API endpoint in Settings.`,
                 "assistant"
             );
             console.error(err);
+        }
+    }
+
+    // ✅ FIX #3 (cont.): Upload a file to /api/v1/upload and show the response.
+    async uploadFile(file) {
+        if (!file) return;
+
+        const sizeKb = (file.size / 1024).toFixed(1);
+        this.chat.addMessage(`📎 ${file.name} (${sizeKb} KB)`, "user");
+        this.chat.showTypingIndicator();
+        this._uploading = true;
+
+        try {
+            const BASE_URL = this.apiEndpoint || "";
+
+            const form = new FormData();
+            form.append("file", file);
+            form.append("session_id", this.sessionId);
+
+            const res = await fetch(`${BASE_URL}/api/v1/upload`, {
+                method: "POST",
+                body: form,
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            this.chat.hideTypingIndicator();
+
+            const reply = data.message || (res.ok
+                ? "File uploaded."
+                : `Upload failed (status ${res.status}).`);
+            this.chat.addMessage(reply, "assistant");
+
+            if (this.voice.isVoiceEnabled && reply) {
+                this.voice.speakText(reply);
+            }
+
+            this.messageCount++;
+            localStorage.setItem("messageCount", this.messageCount);
+        } catch (err) {
+            this.chat.hideTypingIndicator();
+            this.chat.addMessage("Upload error ❌ Could not reach the server.", "assistant");
+            console.error(err);
+        } finally {
+            this._uploading = false;
         }
     }
 
