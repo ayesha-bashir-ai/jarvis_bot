@@ -3,32 +3,38 @@ class ChatModule {
         this.container = document.getElementById('chatMessages');
 
         const welcome = document.getElementById('welcomeScreen');
+
         if (welcome) {
             this.welcomeHTML = welcome.outerHTML;
         }
-
-        this.lastResponseTime = 0;
     }
 
     hideWelcome() {
-        document.getElementById('welcomeScreen')?.style.setProperty('display', 'none');
+        const welcome = document.getElementById('welcomeScreen');
+        if (welcome) welcome.style.display = 'none';
     }
 
+    // ✅ FIXED: safer restore (prevents duplicate injection issues)
     showWelcome() {
-        if (!this.container || !this.welcomeHTML) return;
+        if (!this.container) return;
 
-        const existing = document.getElementById('welcomeScreen');
+        let welcome = document.getElementById('welcomeScreen');
 
-        if (existing) {
-            existing.style.display = '';
+        if (welcome) {
+            welcome.style.display = '';
             return;
         }
 
+        if (!this.welcomeHTML) return;
+
+        // ⚠️ safety: avoid stacking multiple DOM restores
         this.container.innerHTML = "";
 
         this.container.insertAdjacentHTML('afterbegin', this.welcomeHTML);
 
-        window.jarvis?.bindSuggestionCards?.();
+        if (window.jarvis) {
+            window.jarvis.bindSuggestionCards();
+        }
     }
 
     addMessage(text, sender) {
@@ -37,10 +43,10 @@ class ChatModule {
         const div = document.createElement("div");
         div.className = `message ${sender}`;
 
-        const avatar = sender === "user" ? "👤" : "🤖";
-
         div.innerHTML = `
-            <div class="message-avatar">${avatar}</div>
+            <div class="message-avatar">
+                ${sender === "user" ? "👤" : "🤖"}
+            </div>
             <div class="message-content"></div>
         `;
 
@@ -48,48 +54,28 @@ class ChatModule {
 
         this.container.appendChild(div);
 
-        this.smoothScroll();
+        this.scroll();
     }
 
-    // ⚡ improved typing indicator
     showTypingIndicator() {
         this.hideTypingIndicator();
         this.hideWelcome();
 
         const div = document.createElement("div");
-        div.id = "typingIndicator";
+        div.id = "typing";
         div.className = "message assistant";
-
-        div.innerHTML = `
-            <div class="message-avatar">🤖</div>
-            <div class="message-content">
-                <span class="typing-dots">Typing...</span>
-            </div>
-        `;
+        div.innerHTML = "🤖 typing...";
 
         this.container.appendChild(div);
 
-        this.smoothScroll();
+        this.scroll();
     }
 
     hideTypingIndicator() {
-        document.getElementById("typingIndicator")?.remove();
+        document.getElementById("typing")?.remove();
     }
 
-    // 🧠 response time tracking support
-    setResponseStartTime() {
-        this.lastStart = performance.now();
-    }
-
-    setResponseEndTime() {
-        if (!this.lastStart) return;
-
-        const time = Math.round(performance.now() - this.lastStart);
-        this.lastResponseTime = time;
-
-        window.jarvis?.ui?.updateResponseTime(time);
-    }
-
+    // ✅ FIXED: full reset + no ghost elements
     clearChat() {
         if (!this.container) return;
 
@@ -100,15 +86,9 @@ class ChatModule {
         this.showWelcome();
     }
 
-    // ⚡ smoother scroll (prevents jitter)
-    smoothScroll() {
+    scroll() {
         if (!this.container) return;
 
-        requestAnimationFrame(() => {
-            this.container.scrollTo({
-                top: this.container.scrollHeight,
-                behavior: "smooth"
-            });
-        });
+        this.container.scrollTop = this.container.scrollHeight;
     }
 }
