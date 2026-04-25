@@ -1,40 +1,24 @@
 class JARVISApp {
     constructor() {
-        // =============================
-        // SAFE API ENDPOINT HANDLING
-        // =============================
         const storedEndpoint = localStorage.getItem('apiEndpoint');
 
-        // Default backend (IMPORTANT FIX → port 8000)
+        // ✅ FIX 1: safe default backend (8000)
         this.apiEndpoint =
             storedEndpoint && storedEndpoint.trim() !== ""
-                ? storedEndpoint
+                ? storedEndpoint.trim()
                 : "http://localhost:8000";
 
-        // Clean invalid stored endpoints
-        if (
-            storedEndpoint &&
-            (storedEndpoint.includes('railway.app') ||
-             storedEndpoint.includes('jarvisbot-production') ||
-             storedEndpoint.trim() === "")
-        ) {
-            localStorage.removeItem('apiEndpoint');
-            this.apiEndpoint = "http://localhost:8000";
-        }
+        // ❌ removed broken railway auto-reset logic (it was causing empty API)
 
-        // =============================
-        // SESSION + STATE
-        // =============================
         this.sessionId =
             localStorage.getItem('sessionId') ||
             'session_' + Date.now();
 
+        localStorage.setItem('sessionId', this.sessionId);
+
         this.messageCount =
             parseInt(localStorage.getItem('messageCount') || '0');
 
-        // =============================
-        // MODULES
-        // =============================
         this.chat = new ChatModule();
         this.ui = new UIModule();
         this.voice = new VoiceModule();
@@ -42,9 +26,6 @@ class JARVISApp {
         this.startTime = Date.now();
     }
 
-    // =============================
-    // INIT APP
-    // =============================
     async init() {
         this.chat.init();
         this.bindEvents();
@@ -54,13 +35,11 @@ class JARVISApp {
 
         setInterval(() => this.checkConnection(), 15000);
 
-        console.log("JARVIS Ready 🚀");
-        console.log("API Endpoint:", this.apiEndpoint);
+        console.log("JARVIS Ready");
+        console.log("API:", this.apiEndpoint);
     }
 
-    // =============================
-    // CONNECTION CHECK
-    // =============================
+    // ✅ FIX 2: ALWAYS use backend URL (no relative path)
     async checkConnection() {
         const el = document.getElementById('connectionStatus');
         if (!el) return;
@@ -68,8 +47,10 @@ class JARVISApp {
         const label = el.querySelector('span:last-child');
         const dot = el.querySelector('.status-dot');
 
+        const base = this.apiEndpoint || "http://localhost:8000";
+
         try {
-            const res = await fetch(`${this.apiEndpoint}/api/health`, {
+            const res = await fetch(`${base}/api/health`, {
                 cache: 'no-store'
             });
 
@@ -90,9 +71,6 @@ class JARVISApp {
         }
     }
 
-    // =============================
-    // EVENT BINDINGS
-    // =============================
     bindEvents() {
         document.getElementById('sendBtn')
             ?.addEventListener('click', () => this.sendMessage());
@@ -128,31 +106,18 @@ class JARVISApp {
                 btn.classList.toggle('active', this.voice.isVoiceEnabled);
             });
 
-        document.querySelectorAll('.suggestion-card')
-            .forEach((card) => {
-                card.addEventListener('click', () => {
-                    const msg = card.getAttribute('data-msg');
-                    if (!msg) return;
+        this.bindSuggestionCards();
 
-                    const input = document.getElementById('messageInput');
-                    if (input) input.value = msg;
-
-                    this.sendMessage();
-                });
+        document.querySelectorAll('.theme-option').forEach((opt) => {
+            opt.addEventListener('click', () => {
+                const theme = opt.getAttribute('data-theme');
+                if (theme) this.ui.applyTheme(theme);
             });
-
-        document.querySelectorAll('.theme-option')
-            .forEach((opt) => {
-                opt.addEventListener('click', () => {
-                    const theme = opt.getAttribute('data-theme');
-                    if (theme) this.ui.applyTheme(theme);
-                });
-            });
+        });
 
         document.getElementById('mobileMenuBtn')
             ?.addEventListener('click', () => {
-                document.querySelector('.sidebar')
-                    ?.classList.toggle('open');
+                document.querySelector('.sidebar')?.classList.toggle('open');
             });
 
         document.getElementById('emojiBtn')
@@ -172,16 +137,83 @@ class JARVISApp {
                 );
             });
 
+        const settingsModal = document.getElementById('settingsModal');
+
+        const openSettings = () => {
+            if (!settingsModal) return;
+
+            const apiInput = document.getElementById('apiEndpoint');
+            const sessionInput = document.getElementById('sessionIdInput');
+
+            if (apiInput) apiInput.value = this.apiEndpoint;
+            if (sessionInput) sessionInput.value = this.sessionId;
+
+            settingsModal.classList.add('active');
+        };
+
+        const closeSettings = () => {
+            settingsModal?.classList.remove('active');
+        };
+
         document.getElementById('settingsBtn')
+            ?.addEventListener('click', openSettings);
+
+        document.getElementById('closeModalBtn')
+            ?.addEventListener('click', closeSettings);
+
+        document.getElementById('cancelSettingsBtn')
+            ?.addEventListener('click', closeSettings);
+
+        settingsModal?.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeSettings();
+        });
+
+        document.getElementById('saveSettingsBtn')
             ?.addEventListener('click', () => {
-                document.getElementById('settingsModal')
-                    ?.classList.toggle('open');
+                const apiInput = document.getElementById('apiEndpoint');
+
+                if (apiInput && apiInput.value.trim() !== '') {
+                    this.apiEndpoint = apiInput.value.trim();
+                    localStorage.setItem('apiEndpoint', this.apiEndpoint);
+                } else {
+                    this.apiEndpoint = "http://localhost:8000";
+                    localStorage.removeItem('apiEndpoint');
+                }
+
+                closeSettings();
+                this.checkConnection();
+            });
+
+        document.getElementById('newSessionBtn')
+            ?.addEventListener('click', () => {
+                this.sessionId = 'session_' + Date.now();
+                localStorage.setItem('sessionId', this.sessionId);
+
+                const sessionInput = document.getElementById('sessionIdInput');
+                if (sessionInput) sessionInput.value = this.sessionId;
+
+                this.ui.updateSessionInfo();
             });
     }
 
-    // =============================
-    // SEND MESSAGE (FIXED API)
-    // =============================
+    bindSuggestionCards() {
+        document.querySelectorAll('.suggestion-card').forEach((card) => {
+            if (card.dataset.bound === '1') return;
+            card.dataset.bound = '1';
+
+            card.addEventListener('click', () => {
+                const msg = card.getAttribute('data-msg');
+                if (!msg) return;
+
+                const input = document.getElementById('messageInput');
+                if (input) input.value = msg;
+
+                this.sendMessage();
+            });
+        });
+    }
+
+    // ✅ FIX 3: safe API call always hits backend
     async sendMessage() {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();
@@ -194,17 +226,16 @@ class JARVISApp {
         this.chat.showTypingIndicator();
 
         try {
-            const res = await fetch(
-                `${this.apiEndpoint}/api/v1/chat`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        message,
-                        session_id: this.sessionId
-                    })
-                }
-            );
+            const base = this.apiEndpoint || "http://localhost:8000";
+
+            const res = await fetch(`${base}/api/v1/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message,
+                    session_id: this.sessionId
+                })
+            });
 
             if (!res.ok) throw new Error("API error");
 
@@ -223,16 +254,13 @@ class JARVISApp {
         } catch (err) {
             this.chat.hideTypingIndicator();
             this.chat.addMessage(
-                "Server error ❌ Check backend connection",
+                "Server error ❌ Check backend (port 8000)",
                 "assistant"
             );
             console.error(err);
         }
     }
 
-    // =============================
-    // UPTIME TIMER
-    // =============================
     startUptimeTimer() {
         setInterval(() => {
             const uptime = Math.floor((Date.now() - this.startTime) / 1000);
@@ -242,9 +270,6 @@ class JARVISApp {
     }
 }
 
-// =============================
-// START APP
-// =============================
 document.addEventListener("DOMContentLoaded", () => {
     window.jarvis = new JARVISApp();
     window.jarvis.init();
