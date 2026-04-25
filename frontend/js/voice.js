@@ -7,60 +7,73 @@ class VoiceModule {
         this.pitch = parseFloat(localStorage.getItem('voicePitch') || '1');
 
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
         this.recognition = null;
         this.isListening = false;
 
-        if (SR) {
-            this.recognition = new SR();
-            this.recognition.lang = this.lang;
-            this.recognition.continuous = false;
-            this.recognition.interimResults = false;
-            this.recognition.maxAlternatives = 1;
+        // ✅ SAFE INIT (prevents undefined crashes)
+        if (typeof SR !== "undefined") {
+            try {
+                this.recognition = new SR();
+                this.recognition.lang = this.lang;
+                this.recognition.continuous = false;
+                this.recognition.interimResults = false;
+                this.recognition.maxAlternatives = 1;
 
-            this.recognition.onresult = (e) => {
-                const transcript = e.results[0][0].transcript;
-                const input = document.getElementById('messageInput');
-                if (input) input.value = transcript;
-                this.hideOverlay();
-                if (window.jarvis) window.jarvis.sendMessage();
-            };
+                this.recognition.onresult = (e) => {
+                    const transcript = e.results[0][0].transcript;
+                    const input = document.getElementById('messageInput');
+                    if (input) input.value = transcript;
 
-            this.recognition.onerror = (e) => {
-                console.error('Speech recognition error:', e.error);
-                this.hideOverlay();
-                if (window.jarvis && window.jarvis.chat) {
-                    const msg = e.error === 'not-allowed'
-                        ? 'Microphone permission denied. Please allow microphone access in your browser.'
-                        : `Voice input error: ${e.error}`;
-                    window.jarvis.chat.addMessage(msg, 'assistant');
-                }
-            };
+                    this.hideOverlay();
 
-            this.recognition.onend = () => {
-                this.isListening = false;
-                this.hideOverlay();
-            };
+                    if (window.jarvis) {
+                        window.jarvis.sendMessage();
+                    }
+                };
+
+                this.recognition.onerror = (e) => {
+                    console.error('Speech recognition error:', e.error);
+                    this.hideOverlay();
+
+                    if (window.jarvis?.chat) {
+                        const msg =
+                            e.error === 'not-allowed'
+                                ? 'Microphone blocked. Enable it in browser settings → Site permissions → Microphone.'
+                                : `Voice input error: ${e.error}`;
+
+                        window.jarvis.chat.addMessage(msg, 'assistant');
+                    }
+                };
+
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    this.hideOverlay();
+                };
+
+            } catch (err) {
+                console.warn("SpeechRecognition init failed:", err);
+                this.recognition = null;
+            }
         }
     }
 
     showOverlay() {
-        const overlay = document.getElementById('voiceWaveOverlay');
-        if (overlay) overlay.classList.add('active');
+        document.getElementById('voiceWaveOverlay')
+            ?.classList.add('active');
     }
 
     hideOverlay() {
-        const overlay = document.getElementById('voiceWaveOverlay');
-        if (overlay) overlay.classList.remove('active');
+        document.getElementById('voiceWaveOverlay')
+            ?.classList.remove('active');
     }
 
     startListening() {
         if (!this.recognition) {
-            if (window.jarvis && window.jarvis.chat) {
-                window.jarvis.chat.addMessage(
-                    'Voice input is not supported in this browser. Try Chrome or Edge.',
-                    'assistant'
-                );
-            }
+            window.jarvis?.chat?.addMessage(
+                'Voice input not supported in this browser. Use Chrome or Edge.',
+                'assistant'
+            );
             return;
         }
 
@@ -71,9 +84,23 @@ class VoiceModule {
 
         try {
             this.recognition.lang = this.lang;
-            this.recognition.start();
-            this.isListening = true;
-            this.showOverlay();
+
+            // ✅ prevent double-start crash
+            try {
+                this.recognition.abort();
+            } catch (_) {}
+
+            setTimeout(() => {
+                try {
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.showOverlay();
+                } catch (err) {
+                    console.error("Speech start failed:", err);
+                    this.hideOverlay();
+                }
+            }, 80);
+
         } catch (err) {
             console.error('Could not start speech recognition:', err);
             this.hideOverlay();
@@ -81,28 +108,45 @@ class VoiceModule {
     }
 
     stopListening() {
-        if (this.recognition && this.isListening) {
-            try { this.recognition.stop(); } catch (_) {}
+        if (this.recognition) {
+            try {
+                this.recognition.stop();
+                this.recognition.abort();
+            } catch (_) {}
         }
+
         this.isListening = false;
         this.hideOverlay();
     }
 
     speakText(text) {
-        if (!this.isVoiceEnabled || !this.synth) return;
-        try { this.synth.cancel(); } catch (_) {}
+        if (!this.isVoiceEnabled || !this.synth || !text) return;
+
+        try {
+            this.synth.cancel();
+        } catch (_) {}
+
         const utter = new SpeechSynthesisUtterance(text);
+
         utter.lang = this.lang;
         utter.rate = this.rate;
         utter.pitch = this.pitch;
+
+        utter.onerror = (e) => {
+            console.error("Speech synthesis error:", e.error);
+        };
+
         this.synth.speak(utter);
     }
 
     toggleVoice() {
         this.isVoiceEnabled = !this.isVoiceEnabled;
-        localStorage.setItem('voiceEnabled', this.isVoiceEnabled);
+        localStorage.setItem('voiceEnabled', String(this.isVoiceEnabled));
+
         if (!this.isVoiceEnabled && this.synth) {
-            try { this.synth.cancel(); } catch (_) {}
+            try {
+                this.synth.cancel();
+            } catch (_) {}
         }
     }
 
