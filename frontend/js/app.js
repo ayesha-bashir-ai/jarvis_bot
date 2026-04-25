@@ -73,15 +73,7 @@
             btn.classList.toggle('active', this.voice.isVoiceEnabled);
         });
 
-        document.querySelectorAll('.suggestion-card').forEach((card) => {
-            card.addEventListener('click', () => {
-                const msg = card.getAttribute('data-msg');
-                if (!msg) return;
-                const input = document.getElementById('messageInput');
-                if (input) input.value = msg;
-                this.sendMessage();
-            });
-        });
+        this.bindSuggestionCards();
 
         document.querySelectorAll('.theme-option').forEach((opt) => {
             opt.addEventListener('click', () => {
@@ -106,9 +98,57 @@
             this.chat.addMessage('Attachments are not supported yet.', 'assistant');
         });
 
-        document.getElementById('settingsBtn')?.addEventListener('click', () => {
-            const modal = document.getElementById('settingsModal');
-            if (modal) modal.classList.toggle('open');
+        const settingsModal = document.getElementById('settingsModal');
+        const openSettings = () => {
+            if (!settingsModal) return;
+            const apiInput = document.getElementById('apiEndpoint');
+            if (apiInput) apiInput.value = this.apiEndpoint;
+            const sessionInput = document.getElementById('sessionIdInput');
+            if (sessionInput) sessionInput.value = this.sessionId;
+            settingsModal.classList.add('active');
+        };
+        const closeSettings = () => settingsModal?.classList.remove('active');
+
+        document.getElementById('settingsBtn')?.addEventListener('click', openSettings);
+        document.getElementById('closeModalBtn')?.addEventListener('click', closeSettings);
+        document.getElementById('cancelSettingsBtn')?.addEventListener('click', closeSettings);
+        settingsModal?.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeSettings();
+        });
+
+        document.getElementById('saveSettingsBtn')?.addEventListener('click', () => {
+            const apiInput = document.getElementById('apiEndpoint');
+            if (apiInput && apiInput.value.trim() !== '') {
+                this.apiEndpoint = apiInput.value.trim();
+                localStorage.setItem('apiEndpoint', this.apiEndpoint);
+            } else {
+                this.apiEndpoint = '';
+                localStorage.removeItem('apiEndpoint');
+            }
+            closeSettings();
+            this.checkConnection();
+        });
+
+        document.getElementById('newSessionBtn')?.addEventListener('click', () => {
+            this.sessionId = 'session_' + Date.now();
+            localStorage.setItem('sessionId', this.sessionId);
+            const sessionInput = document.getElementById('sessionIdInput');
+            if (sessionInput) sessionInput.value = this.sessionId;
+            this.ui.updateSessionInfo();
+        });
+    }
+
+    bindSuggestionCards() {
+        document.querySelectorAll('.suggestion-card').forEach((card) => {
+            if (card.dataset.bound === '1') return;
+            card.dataset.bound = '1';
+            card.addEventListener('click', () => {
+                const msg = card.getAttribute('data-msg');
+                if (!msg) return;
+                const input = document.getElementById('messageInput');
+                if (input) input.value = msg;
+                this.sendMessage();
+            });
         });
     }
 
