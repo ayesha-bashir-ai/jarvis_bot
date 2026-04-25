@@ -38,6 +38,8 @@ class JARVISApp {
         this.voice = new VoiceModule();
 
         this.startTime = Date.now();
+
+        this._suggestionsBound = false;
     }
 
     async init() {
@@ -98,6 +100,7 @@ class JARVISApp {
         }
     }
 
+    // ✅ FIXED EVENTS
     bindEvents() {
         document.getElementById('sendBtn')
             ?.addEventListener('click', () => this.sendMessage());
@@ -125,21 +128,30 @@ class JARVISApp {
         document.getElementById('settingsBtn')
             ?.addEventListener('click', () => this.openSettings());
 
+        document.getElementById('closeModalBtn')
+            ?.addEventListener('click', () => this.closeSettings());
+
+        document.getElementById('cancelSettingsBtn')
+            ?.addEventListener('click', () => this.closeSettings());
+
         document.getElementById('saveSettingsBtn')
             ?.addEventListener('click', () => this.saveSettings());
 
-        // ✅ FIXED: safe suggestion binding
         this.bindSuggestionCards();
     }
 
-    // ✅ FIXED + IMPROVED (no rebind issues)
+    // ✅ FIXED SUGGESTIONS
     bindSuggestionCards() {
+        if (this._suggestionsBound) return;
+        this._suggestionsBound = true;
+
         document.addEventListener('click', (e) => {
             const card = e.target.closest('.suggestion-card');
             if (!card) return;
 
             const value =
                 card.getAttribute('data-value') ||
+                card.getAttribute('data-msg') ||
                 card.textContent?.trim();
 
             const input = document.getElementById('messageInput');
@@ -148,10 +160,18 @@ class JARVISApp {
                 input.value = value;
                 input.focus();
             }
-
-            // optional auto-send:
-            // this.sendMessage();
         });
+    }
+
+    // ✅ FIX: SETTINGS
+    openSettings() {
+        document.getElementById("settingsModal")
+            ?.classList.add("active");
+    }
+
+    closeSettings() {
+        document.getElementById("settingsModal")
+            ?.classList.remove("active");
     }
 
     getBaseURL() {
@@ -197,6 +217,10 @@ class JARVISApp {
             this.messageCount++;
             localStorage.setItem("messageCount", this.messageCount);
 
+            // ✅ FIX UI COUNTER
+            document.getElementById("msgCount")
+                ?.textContent = this.messageCount;
+
         } catch (err) {
             this.chat.hideTypingIndicator();
             this.chat.addMessage(
@@ -229,6 +253,7 @@ class JARVISApp {
         }
 
         this.checkConnection();
+        this.closeSettings();
     }
 }
 
